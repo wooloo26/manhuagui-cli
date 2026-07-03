@@ -123,8 +123,8 @@ Copy `.env.example` to `.env` and modify as needed. System environment variables
 | `OUTPUT_BASE`         | `./output` | Download output directory                           |
 | `IMAGE_CONCURRENCY`   | `2`        | Concurrent image downloads per chapter              |
 | `DOWNLOAD_DELAY`      | `3000`     | Delay between image batches (ms, 0 to disable)     |
-| `CHAPTER_DELAY_MIN`   | `5000`     | Min delay between chapters (ms)                     |
-| `CHAPTER_DELAY_MAX`   | `15000`    | Max delay between chapters (ms)                     |
+| `CHAPTER_DELAY_MIN`   | `3000`     | Min delay between chapters (ms)                     |
+| `CHAPTER_DELAY_MAX`   | `6000`    | Max delay between chapters (ms)                     |
 | `RETRY_COUNT`         | `3`        | Retry count per image download                      |
 | `RETRY_BACKOFF_BASE`  | `1000`     | Retry backoff base (ms), wait `N × base` on Nth retry |
 | `IMAGE_LOAD_DELAY`    | `200`      | Wait after page turn for image to load (ms)         |

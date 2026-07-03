@@ -123,8 +123,8 @@ CLI 参数 > 配置文件 > 环境变量 > 默认值
 | `OUTPUT_BASE`         | `./output` | 下载输出目录                             |
 | `IMAGE_CONCURRENCY`   | `2`        | 章节内图片并发下载数                     |
 | `DOWNLOAD_DELAY`      | `3000`     | 图片批次之间延迟（毫秒，0 禁用）         |
-| `CHAPTER_DELAY_MIN`   | `5000`     | 章节间最小延迟（毫秒）                   |
-| `CHAPTER_DELAY_MAX`   | `15000`    | 章节间最大延迟（毫秒）                   |
+| `CHAPTER_DELAY_MIN`   | `3000`     | 章节间最小延迟（毫秒）                   |
+| `CHAPTER_DELAY_MAX`   | `6000`    | 章节间最大延迟（毫秒）                   |
 | `RETRY_COUNT`         | `3`        | 图片下载重试次数                         |
 | `RETRY_BACKOFF_BASE`  | `1000`     | 重试退避基准毫秒（第 N 次重试等待 N×base） |
 | `IMAGE_LOAD_DELAY`    | `200`      | 翻页后等待图片加载时间（毫秒）           |
