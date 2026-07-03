@@ -29,6 +29,8 @@ interface SectionTaskContext {
   comicTitle: string;
   overallCompletedChapters: number;
   overallDownloadedImages: number;
+  totalChaptersAll: number;
+  totalImagesAll: number;
 }
 
 function buildSectionTitle(opts: {
@@ -39,9 +41,12 @@ function buildSectionTitle(opts: {
   imgDone: number;
   imgTotal: number;
   etaMs: number;
+  totalEtaMs?: number;
 }): string {
-  const { tracker, label, ch, chTotal, imgDone, imgTotal, etaMs } = opts;
-  const eta = tracker.sampleCount >= 1 ? `[~${SpeedTracker.formatMsCompact(etaMs)}]` : "[--]";
+  const { tracker, label, ch, chTotal, imgDone, imgTotal, etaMs, totalEtaMs } = opts;
+  const totalPart = totalEtaMs != null ? ` | ${SpeedTracker.formatMsCompact(totalEtaMs)}` : "";
+  const eta =
+    tracker.sampleCount >= 1 ? `[~${SpeedTracker.formatMsCompact(etaMs)}${totalPart}]` : "[--]";
   const img = imgTotal > 0 ? `  Img:${imgDone}/${imgTotal}` : "";
   return `${label}  ${ch}/${chTotal}${img}  ${eta}`;
 }
@@ -135,6 +140,8 @@ function createSectionTask(ctx: SectionTaskContext) {
     tracker,
     browser,
     comicTitle,
+    totalChaptersAll,
+    totalImagesAll,
   } = ctx;
 
   const fullChTotal = section.chapters.length + doneCount.chapters;
@@ -144,8 +151,10 @@ function createSectionTask(ctx: SectionTaskContext) {
   let overallCompleted = ctx.overallCompletedChapters;
   let overallDownloaded = ctx.overallDownloadedImages;
 
+  const initialImg = fullImgTotal > 0 ? `  Img:0/${fullImgTotal}` : "";
+
   return {
-    title: section.name,
+    title: `${section.name}  0/${fullChTotal}${initialImg}`,
     task: async (_taskCtx: unknown, task: { title: string }) => {
       const label = section.name;
       let currentChapterDownloaded = 0;
@@ -172,6 +181,12 @@ function createSectionTask(ctx: SectionTaskContext) {
                   )
                 : 0;
           const sectionEta = tracker.estimateSection(remainingImages, remainingChapters);
+          const totalRemainingImages = Math.max(
+            0,
+            totalImagesAll - overallDownloaded - currentChapterDownloaded,
+          );
+          const totalRemainingChapters = Math.max(0, totalChaptersAll - overallCompleted);
+          const totalEta = tracker.estimateSection(totalRemainingImages, totalRemainingChapters);
           task.title = buildSectionTitle({
             tracker,
             label,
@@ -180,6 +195,7 @@ function createSectionTask(ctx: SectionTaskContext) {
             imgDone: downloadedInSection + currentChapterDownloaded,
             imgTotal: knownTotal > 0 ? fullImgTotal : 0,
             etaMs: sectionEta,
+            totalEtaMs: totalEta,
           });
         };
 
@@ -294,6 +310,8 @@ export function createDownloadTasks(opts: {
           comicTitle,
           overallCompletedChapters: resumeCounts.overallCompletedChapters,
           overallDownloadedImages: resumeCounts.overallDownloadedImages,
+          totalChaptersAll: stats.totalChapters,
+          totalImagesAll: stats.totalImages,
         }),
       ),
       {
