@@ -38,7 +38,7 @@ async function parseComicWithSpinner(browser: Browser, url: string): Promise<Com
   return comic;
 }
 
-function applyFilters(
+export function applyFilters(
   sections: Section[],
   sectionFilter?: string,
   chapterFilter?: string,

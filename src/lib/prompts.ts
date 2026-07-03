@@ -2,7 +2,7 @@ import { confirm, isCancel, multiselect, text } from "@clack/prompts";
 import { CancelledError } from "./errors.js";
 import type { Section } from "./types.js";
 
-function assertNotCanceled<T>(result: T | symbol): asserts result is T {
+export function assertNotCanceled<T>(result: T | symbol): asserts result is T {
   if (isCancel(result)) {
     throw new CancelledError();
   }

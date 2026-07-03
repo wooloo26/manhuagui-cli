@@ -1,5 +1,66 @@
 import { describe, expect, it } from "vitest";
-import { command } from "./cli.js";
+import { applyFilters, command } from "./cli.js";
+import type { Section } from "./types.js";
+
+function makeSection(name: string, chapters: string[]): Section {
+  return {
+    name,
+    chapters: chapters.map((title) => ({ title, url: `/${title}`, pageCount: 10 })),
+  };
+}
+
+describe("applyFilters", () => {
+  const sections = [
+    makeSection("单行本", ["第01卷", "第02卷", "第03卷"]),
+    makeSection("单话", ["第01回", "第02回", "第03回"]),
+  ];
+
+  it("returns all sections when no filters are set", () => {
+    expect(applyFilters(sections)).toEqual(sections);
+  });
+
+  it("filters by exact section name", () => {
+    const result = applyFilters(sections, "单话");
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("单话");
+  });
+
+  it("filters by partial section name", () => {
+    const result = applyFilters(sections, "行本");
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("单行本");
+  });
+
+  it("filters by exact chapter title", () => {
+    const result = applyFilters(sections, undefined, "第01回");
+    expect(result).toHaveLength(1);
+    expect(result[0].chapters).toHaveLength(1);
+    expect(result[0].chapters[0].title).toBe("第01回");
+  });
+
+  it("filters by partial chapter title", () => {
+    const result = applyFilters(sections, undefined, "01");
+    expect(result).toHaveLength(2);
+    expect(result[0].name).toBe("单行本");
+    expect(result[1].name).toBe("单话");
+  });
+
+  it("returns empty array when no sections match", () => {
+    expect(applyFilters(sections, "nonexistent")).toEqual([]);
+  });
+
+  it("returns empty array when no chapters match", () => {
+    expect(applyFilters(sections, undefined, "第99话")).toEqual([]);
+  });
+
+  it("filters both section and chapter simultaneously", () => {
+    const result = applyFilters(sections, "单话", "第02");
+    expect(result).toHaveLength(1);
+    expect(result[0].name).toBe("单话");
+    expect(result[0].chapters).toHaveLength(1);
+    expect(result[0].chapters[0].title).toBe("第02回");
+  });
+});
 
 describe("command definition", () => {
   it("has the correct name", () => {

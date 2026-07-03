@@ -98,7 +98,7 @@ async function navigateToChapterPage(page: PlaywrightPage, url: string): Promise
   await page.waitForSelector("#mangaFile", { timeout: config.chapterSelectorTimeout });
 }
 
-function validateImageResponse(response: Response | null): void {
+export function validateImageResponse(response: Response | null): void {
   if (response?.status() !== 200) {
     throw new Error(`HTTP ${response?.status() ?? "no response"}`);
   }
