@@ -2,14 +2,20 @@ type LogLevel = "debug" | "info" | "warn" | "error";
 
 const LEVELS: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 
-function getLevel(): LogLevel {
+let _level: LogLevel = getLevelFromEnv();
+
+function getLevelFromEnv(): LogLevel {
   const env = process.env.LOG_LEVEL?.toLowerCase();
   if (env && env in LEVELS) return env as LogLevel;
   return "info";
 }
 
+export function setLogLevel(level: LogLevel): void {
+  _level = level;
+}
+
 function shouldLog(level: LogLevel): boolean {
-  return LEVELS[level] >= LEVELS[getLevel()];
+  return LEVELS[level] >= LEVELS[_level];
 }
 
 export const logger = {

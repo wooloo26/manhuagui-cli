@@ -1,6 +1,6 @@
 import * as cheerio from "cheerio";
 import type { Page } from "playwright";
-import { ADULT_CLICK_SETTLE_DELAY, ADULT_SELECTOR_TIMEOUT, PAGE_LOAD_TIMEOUT } from "./config.js";
+import { config } from "./config.js";
 import type { Chapter, ComicInfo, Section } from "./types.js";
 
 export function parseChapters(ulHTML: string, baseUrl: string): Chapter[] {
@@ -55,7 +55,7 @@ export function parseComicHTML(html: string, baseUrl: string): ComicInfo {
 export async function parseComicPage(page: Page, url: string): Promise<ComicInfo> {
   const response = await page.goto(url, {
     waitUntil: "domcontentloaded",
-    timeout: PAGE_LOAD_TIMEOUT,
+    timeout: config.pageLoadTimeout,
   });
   if (!response?.ok()) {
     throw new Error(`Failed to load comic page: ${response?.status()}`);
@@ -64,8 +64,8 @@ export async function parseComicPage(page: Page, url: string): Promise<ComicInfo
   const checkAdult = await page.$("#checkAdult");
   if (checkAdult) {
     await checkAdult.click();
-    await page.waitForSelector(".chapter h4", { timeout: ADULT_SELECTOR_TIMEOUT });
-    await page.waitForTimeout(ADULT_CLICK_SETTLE_DELAY);
+    await page.waitForSelector(".chapter h4", { timeout: config.adultSelectorTimeout });
+    await page.waitForTimeout(config.adultClickSettleDelay);
   }
 
   const html = await page.content();

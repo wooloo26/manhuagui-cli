@@ -75,26 +75,61 @@ node dist/index.js https://www.manhuagui.com/comic/12345/ --resume
 
 ### Options
 
-| Option             | Alias | Description                                    |
-| ------------------ | ----- | ---------------------------------------------- |
-| `--section <name>` | `-s`  | Download only the named section (default: all) |
-| `--chapter <name>` | `-c`  | Download only the named chapter                |
-| `--resume`         | `-r`  | Resume from previous interrupted download      |
-| `--help`           | `-h`  | Show help                                      |
-| `--version`        | `-v`  | Show version                                   |
+| Option               | Alias | Description                                                    |
+| -------------------- | ----- | -------------------------------------------------------------- |
+| `--section <name>`   | `-s`  | Download only the named section (default: all)                 |
+| `--chapter <name>`   | `-c`  | Download only the named chapter                                |
+| `--output <dir>`     | `-o`  | Download output directory                                      |
+| `--concurrency <n>`  | `-C`  | Concurrent image downloads per chapter                         |
+| `--retry <n>`        |       | Retry count per image download                                 |
+| `--log-level <level>`|       | Log level: `debug` \| `info` \| `warn` \| `error`                |
+| `--resume`           | `-r`  | Resume from previous interrupted download                      |
+| `--dry-run`          | `-d`  | Preview mode (list chapters without downloading)               |
+| `--help`             | `-h`  | Show help                                                      |
+| `--version`          | `-v`  | Show version                                                   |
 
-## Environment Variables
+## Configuration
 
-Copy `.env.example` to `.env` and modify as needed:
+All settings follow this priority order (higher overrides lower):
 
-| Variable            | Default    | Description                            |
-| ------------------- | ---------- | -------------------------------------- |
-| `OUTPUT_BASE`       | `./output` | Download output directory              |
-| `IMAGE_CONCURRENCY` | `2`        | Concurrent image downloads per chapter |
-| `DOWNLOAD_DELAY`    | `3000`     | Delay between image batches (ms)       |
-| `CHAPTER_DELAY_MIN` | `5000`     | Min delay between chapters (ms)        |
-| `CHAPTER_DELAY_MAX` | `15000`    | Max delay between chapters (ms)        |
-| `USER_AGENTS`       | —          | Custom User-Agent pool, one per line   |
+```
+CLI args > config files > environment variables > defaults
+```
+
+### Config Files
+
+Two JSON config file locations are supported, project-level overrides global:
+
+- **Project-level**: `<cwd>/.manhuaguirc.json`
+- **Global**: `~/.config/manhuagui-cli/config.json` (Windows: `%USERPROFILE%\.config\manhuagui-cli\config.json`)
+
+```json
+{
+  "outputBase": "./downloads",
+  "imageConcurrency": 4,
+  "retryCount": 5,
+  "logLevel": "debug"
+}
+```
+
+All fields are optional; defaults are used for any omitted field.
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and modify as needed. System environment variables are also supported.
+
+| Variable              | Default    | Description                                         |
+| --------------------- | ---------- | --------------------------------------------------- |
+| `OUTPUT_BASE`         | `./output` | Download output directory                           |
+| `IMAGE_CONCURRENCY`   | `2`        | Concurrent image downloads per chapter              |
+| `DOWNLOAD_DELAY`      | `3000`     | Delay between image batches (ms, 0 to disable)     |
+| `CHAPTER_DELAY_MIN`   | `5000`     | Min delay between chapters (ms)                     |
+| `CHAPTER_DELAY_MAX`   | `15000`    | Max delay between chapters (ms)                     |
+| `RETRY_COUNT`         | `3`        | Retry count per image download                      |
+| `RETRY_BACKOFF_BASE`  | `1000`     | Retry backoff base (ms), wait `N × base` on Nth retry |
+| `IMAGE_LOAD_DELAY`    | `200`      | Wait after page turn for image to load (ms)         |
+| `LOG_LEVEL`           | `info`     | Log level: `debug` \| `info` \| `warn` \| `error`     |
+| `USER_AGENTS`         | —          | Custom User-Agent pool, one per line                |
 
 ## Output Structure
 

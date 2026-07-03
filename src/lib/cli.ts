@@ -6,16 +6,7 @@ import type { Browser } from "playwright";
 import { chromium } from "playwright";
 import { extractChapterImages } from "./chapter.js";
 import { parseComicPage } from "./comic.js";
-import {
-  CHAPTER_DELAY_MAX,
-  CHAPTER_DELAY_MIN,
-  OUTPUT_BASE,
-  pickUserAgent,
-  VIEWPORT_MAX_HEIGHT,
-  VIEWPORT_MAX_WIDTH,
-  VIEWPORT_MIN_HEIGHT,
-  VIEWPORT_MIN_WIDTH,
-} from "./config.js";
+import { config, initConfig, pickUserAgent, type UserConfigOverrides } from "./config.js";
 import { CancelledError } from "./errors.js";
 import { logger } from "./logger.js";
 import {
@@ -38,8 +29,8 @@ async function parseComicWithSpinner(browser: Browser, url: string): Promise<Com
   const ctx = await browser.newContext({
     userAgent: pickUserAgent(),
     viewport: {
-      width: randInt(VIEWPORT_MIN_WIDTH, VIEWPORT_MAX_WIDTH),
-      height: randInt(VIEWPORT_MIN_HEIGHT, VIEWPORT_MAX_HEIGHT),
+      width: randInt(config.viewportMinWidth, config.viewportMaxWidth),
+      height: randInt(config.viewportMinHeight, config.viewportMaxHeight),
     },
   });
   const page = await ctx.newPage();
@@ -96,7 +87,7 @@ async function processChapter(
   browser: Browser,
 ): Promise<{ title: string; urls: string[]; chapterUrl: string } | null> {
   const dirName = slugify(chapter.title);
-  const outputDir = join(OUTPUT_BASE, slugify(comicTitle), slugify(sectionName), dirName);
+  const outputDir = join(config.outputBase, slugify(comicTitle), slugify(sectionName), dirName);
 
   const urls = await extractChapterImages(chapter.url, browser, outputDir);
   if (urls.length === 0) return null;
@@ -113,7 +104,7 @@ function createDownloadTasks(
 ) {
   const collected: Record<string, { urls: string[]; chapterUrl: string }> = {};
   const errors: string[] = [];
-  const comicDir = join(OUTPUT_BASE, slugify(comicTitle));
+  const comicDir = join(config.outputBase, slugify(comicTitle));
   const progress = resume
     ? (loadProgress(comicDir) ?? createProgress(comicTitle, comicUrl))
     : createProgress(comicTitle, comicUrl);
@@ -154,7 +145,7 @@ function createDownloadTasks(
             }
 
             if (i < section.chapters.length - 1) {
-              await humanDelay(CHAPTER_DELAY_MIN, CHAPTER_DELAY_MAX);
+              await humanDelay(config.chapterDelayMin, config.chapterDelayMax);
             }
           }
 
@@ -187,7 +178,7 @@ async function runDirect(
     }
 
     if (resume) {
-      const comicDir = join(OUTPUT_BASE, slugify(comic.title));
+      const comicDir = join(config.outputBase, slugify(comic.title));
       const progress = loadProgress(comicDir);
       if (progress) {
         sections = filterPending(progress, sections);
@@ -219,7 +210,7 @@ async function runDirect(
     } = createDownloadTasks(sections, comic.title, url, browser, resume);
     await dl.run();
     if (Object.keys(collected).length > 0) {
-      atomicSaveJSON(join(OUTPUT_BASE, slugify(comic.title), "urls.json"), collected);
+      atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), collected);
     }
     reportResults(collected, errors, totalChapters);
   } finally {
@@ -237,7 +228,7 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
     const comic = await parseComicWithSpinner(browser, url);
 
     let shouldResume = resume;
-    const comicDir = join(OUTPUT_BASE, slugify(comic.title));
+    const comicDir = join(config.outputBase, slugify(comic.title));
     const progress = loadProgress(comicDir);
 
     if (progress && !resume) {
@@ -289,7 +280,7 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
     } = createDownloadTasks(selected, comic.title, url, browser, shouldResume);
     await dl.run();
     if (Object.keys(collected).length > 0) {
-      atomicSaveJSON(join(OUTPUT_BASE, slugify(comic.title), "urls.json"), collected);
+      atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), collected);
     }
     reportResults(collected, errors, totalChapters);
   } finally {
@@ -331,8 +322,34 @@ export const command = defineCommand({
       alias: "d",
       default: false,
     },
+    output: {
+      type: "string",
+      description: "下载输出目录 / Output directory for downloads",
+      alias: "o",
+    },
+    concurrency: {
+      type: "string",
+      description: "章节内图片并发下载数 / Concurrent image downloads per chapter",
+      alias: "C",
+    },
+    retry: {
+      type: "string",
+      description: "图片下载重试次数 / Retry count per image",
+    },
+    "log-level": {
+      type: "string",
+      description: "日志级别: debug | info | warn | error / Log level",
+    },
   },
   async run({ args }) {
+    const cliOverrides: UserConfigOverrides = {};
+    if (args.output) cliOverrides.outputBase = args.output;
+    if (args.concurrency) cliOverrides.imageConcurrency = Number(args.concurrency);
+    if (args.retry) cliOverrides.retryCount = Number(args.retry);
+    if (args["log-level"] && ["debug", "info", "warn", "error"].includes(args["log-level"])) {
+      cliOverrides.logLevel = args["log-level"];
+    }
+    initConfig(cliOverrides);
     try {
       if (args.url) {
         await runDirect(args.url, args.section, args.chapter, args.resume, args["dry-run"]);

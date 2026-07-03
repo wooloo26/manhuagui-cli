@@ -75,26 +75,61 @@ node dist/index.js https://www.manhuagui.com/comic/12345/ --resume
 
 ### 选项
 
-| 选项               | 简写 | 说明                                 |
-| ------------------ | ---- | ------------------------------------ |
-| `--section <name>` | `-s` | 指定要下载的章节组名称（默认：全部） |
-| `--chapter <name>` | `-c` | 指定要下载的章节名称                 |
-| `--resume`         | `-r` | 断点续传模式                         |
-| `--help`           | `-h` | 显示帮助信息                         |
-| `--version`        | `-v` | 显示版本号                           |
+| 选项                  | 简写  | 说明                                          |
+| --------------------- | ----- | --------------------------------------------- |
+| `--section <name>`    | `-s`  | 指定要下载的章节组名称（默认：全部）          |
+| `--chapter <name>`    | `-c`  | 指定要下载的章节名称                          |
+| `--output <dir>`      | `-o`  | 下载输出目录                                  |
+| `--concurrency <n>`   | `-C`  | 章节内图片并发下载数                          |
+| `--retry <n>`         |       | 图片下载重试次数                              |
+| `--log-level <level>` |       | 日志级别：`debug` \| `info` \| `warn` \| `error` |
+| `--resume`            | `-r`  | 断点续传模式                                  |
+| `--dry-run`           | `-d`  | 预览模式（不实际下载）                        |
+| `--help`              | `-h`  | 显示帮助信息                                  |
+| `--version`           | `-v`  | 显示版本号                                    |
 
-## 环境变量
+## 配置
 
-复制 `.env.example` 为 `.env`，根据需要修改：
+所有配置项按以下优先级生效（高优先级覆盖低优先级）：
 
-| 变量                | 默认值     | 说明                               |
-| ------------------- | ---------- | ---------------------------------- |
-| `OUTPUT_BASE`       | `./output` | 下载输出目录                       |
-| `IMAGE_CONCURRENCY` | `2`        | 章节内图片并发下载数               |
-| `DOWNLOAD_DELAY`    | `3000`     | 图片批次之间延迟（毫秒，0 禁用）   |
-| `CHAPTER_DELAY_MIN` | `5000`     | 章节间最小延迟（毫秒）             |
-| `CHAPTER_DELAY_MAX` | `15000`    | 章节间最大延迟（毫秒）             |
-| `USER_AGENTS`       | —          | 自定义 User-Agent 列表（每行一个） |
+```
+CLI 参数 > 配置文件 > 环境变量 > 默认值
+```
+
+### 配置文件
+
+支持两个位置的 JSON 配置文件，项目级覆盖全局级：
+
+- **项目级**: `<当前目录>/.manhuaguirc.json`
+- **全局**: `~/.config/manhuagui-cli/config.json`（Windows: `%USERPROFILE%\.config\manhuagui-cli\config.json`）
+
+```json
+{
+  "outputBase": "./downloads",
+  "imageConcurrency": 4,
+  "retryCount": 5,
+  "logLevel": "debug"
+}
+```
+
+全部可选，未指定的项使用默认值。
+
+### 环境变量
+
+复制 `.env.example` 为 `.env`，根据需要修改。也支持直接设置系统环境变量。
+
+| 变量                  | 默认值     | 说明                                     |
+| --------------------- | ---------- | ---------------------------------------- |
+| `OUTPUT_BASE`         | `./output` | 下载输出目录                             |
+| `IMAGE_CONCURRENCY`   | `2`        | 章节内图片并发下载数                     |
+| `DOWNLOAD_DELAY`      | `3000`     | 图片批次之间延迟（毫秒，0 禁用）         |
+| `CHAPTER_DELAY_MIN`   | `5000`     | 章节间最小延迟（毫秒）                   |
+| `CHAPTER_DELAY_MAX`   | `15000`    | 章节间最大延迟（毫秒）                   |
+| `RETRY_COUNT`         | `3`        | 图片下载重试次数                         |
+| `RETRY_BACKOFF_BASE`  | `1000`     | 重试退避基准毫秒（第 N 次重试等待 N×base） |
+| `IMAGE_LOAD_DELAY`    | `200`      | 翻页后等待图片加载时间（毫秒）           |
+| `LOG_LEVEL`           | `info`     | 日志级别：`debug` \| `info` \| `warn` \| `error` |
+| `USER_AGENTS`         | —          | 自定义 User-Agent 列表（每行一个）       |
 
 ## 输出目录结构
 

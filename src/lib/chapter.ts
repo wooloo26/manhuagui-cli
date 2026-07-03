@@ -1,28 +1,13 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Browser, BrowserContext, Page as PlaywrightPage } from "playwright";
-import {
-  CHAPTER_SELECTOR_TIMEOUT,
-  DOWNLOAD_DELAY,
-  IMAGE_CONCURRENCY,
-  IMAGE_LOAD_DELAY,
-  NEXT_PAGE_TIMEOUT,
-  PAD_MIN_LENGTH,
-  PAGE_LOAD_TIMEOUT,
-  pickUserAgent,
-  RETRY_BACKOFF_BASE,
-  RETRY_COUNT,
-  VIEWPORT_MAX_HEIGHT,
-  VIEWPORT_MAX_WIDTH,
-  VIEWPORT_MIN_HEIGHT,
-  VIEWPORT_MIN_WIDTH,
-} from "./config.js";
+import { config, pickUserAgent } from "./config.js";
 import { rotateHost } from "./download.js";
 import { logger } from "./logger.js";
 import { ensureDir, randInt, sleep } from "./utils.js";
 
 export function computePadLength(count: number): number {
-  return Math.max(PAD_MIN_LENGTH, String(count).length);
+  return Math.max(config.padMinLength, String(count).length);
 }
 
 export function extractExtension(url: string): string {
@@ -72,10 +57,10 @@ async function collectImageUrls(page: PlaywrightPage, pageCount: number): Promis
         return img !== null && img.src !== "" && img.src !== prev;
       },
       prevUrl,
-      { timeout: NEXT_PAGE_TIMEOUT },
+      { timeout: config.nextPageTimeout },
     );
 
-    await page.waitForTimeout(IMAGE_LOAD_DELAY);
+    await page.waitForTimeout(config.imageLoadDelay);
     currentUrl = await page.$eval("#mangaFile", (img) => (img as HTMLImageElement).src);
     urls.push(currentUrl);
   }
@@ -96,12 +81,12 @@ async function downloadImage(
 
   let downloadUrl = url;
 
-  for (let attempt = 0; attempt < RETRY_COUNT; attempt++) {
+  for (let attempt = 0; attempt < config.retryCount; attempt++) {
     try {
       const response = await dlPage.goto(downloadUrl, {
         referer: chapterUrl,
         waitUntil: "load",
-        timeout: PAGE_LOAD_TIMEOUT,
+        timeout: config.pageLoadTimeout,
       });
       if (response?.status() !== 200) {
         throw new Error(`HTTP ${response?.status() ?? "no response"}`);
@@ -125,14 +110,14 @@ async function downloadImage(
       writeFileSync(filePath, Buffer.from(base64, "base64"));
       return true;
     } catch {
-      if (attempt < RETRY_COUNT - 1) {
+      if (attempt < config.retryCount - 1) {
         downloadUrl = rotateHost(downloadUrl);
-        await sleep(RETRY_BACKOFF_BASE * (attempt + 1));
+        await sleep(config.retryBackoffBase * (attempt + 1));
       }
     }
   }
 
-  logger.warn(`Failed to download after ${RETRY_COUNT} retries: ${url}`);
+  logger.warn(`Failed to download after ${config.retryCount} retries: ${url}`);
   return false;
 }
 
@@ -143,7 +128,7 @@ async function downloadImages(
   urls: string[],
   padLen: number,
 ): Promise<void> {
-  const concurrency = Math.min(IMAGE_CONCURRENCY, urls.length);
+  const concurrency = Math.min(config.imageConcurrency, urls.length);
   const downloadPages = await Promise.all(
     Array.from({ length: concurrency }, () => context.newPage()),
   );
@@ -160,8 +145,8 @@ async function downloadImages(
 
       if (results.some((r) => !r)) return;
 
-      if (DOWNLOAD_DELAY > 0) {
-        await sleep(Math.round(DOWNLOAD_DELAY * (0.5 + Math.random())));
+      if (config.downloadDelay > 0) {
+        await sleep(Math.round(config.downloadDelay * (0.5 + Math.random())));
       }
     }
   } finally {
@@ -179,8 +164,8 @@ export async function extractChapterImages(
   const context = await browser.newContext({
     userAgent: pickUserAgent(),
     viewport: {
-      width: randInt(VIEWPORT_MIN_WIDTH, VIEWPORT_MAX_WIDTH),
-      height: randInt(VIEWPORT_MIN_HEIGHT, VIEWPORT_MAX_HEIGHT),
+      width: randInt(config.viewportMinWidth, config.viewportMaxWidth),
+      height: randInt(config.viewportMinHeight, config.viewportMaxHeight),
     },
   });
   const page = await context.newPage();
@@ -188,10 +173,10 @@ export async function extractChapterImages(
   try {
     await page.goto(chapterUrl, {
       waitUntil: "domcontentloaded",
-      timeout: PAGE_LOAD_TIMEOUT,
+      timeout: config.pageLoadTimeout,
     });
 
-    await page.waitForSelector("#mangaFile", { timeout: CHAPTER_SELECTOR_TIMEOUT });
+    await page.waitForSelector("#mangaFile", { timeout: config.chapterSelectorTimeout });
 
     const pageCount = await getPageCount(page);
     if (pageCount <= 0) return [];
