@@ -1,7 +1,35 @@
 import * as cheerio from "cheerio";
 import type { Page } from "playwright";
+import { handleAdultCheck } from "./browser.js";
 import { config } from "./config.js";
 import type { Chapter, ComicInfo, Section } from "./types.js";
+
+function extractComicId(url: string): string {
+  const match = url.match(/\/comic\/(\d+)\//);
+  return match?.[1] ?? "0";
+}
+
+function parseSectionChapters(
+  $: cheerio.CheerioAPI,
+  h4: cheerio.AnyNode,
+  baseUrl: string,
+): Chapter[] {
+  const chapters: Chapter[] = [];
+
+  const directUl = $(h4).next("ul");
+  if (directUl.length) {
+    chapters.push(...parseChapters(directUl.html() ?? "", baseUrl));
+  } else {
+    const chapterList = $(h4).nextAll(".chapter-list").first();
+    if (!chapterList.length) return chapters;
+
+    chapterList.find("ul").each((_, ulEl) => {
+      chapters.push(...parseChapters($(ulEl).html() ?? "", baseUrl));
+    });
+  }
+
+  return chapters;
+}
 
 export function parseChapters(ulHTML: string, baseUrl: string): Chapter[] {
   const $ = cheerio.load(ulHTML);
@@ -24,10 +52,7 @@ export function parseChapters(ulHTML: string, baseUrl: string): Chapter[] {
 export function parseComicHTML(html: string, baseUrl: string): ComicInfo {
   const $ = cheerio.load(html);
   const title = $("h1").first().text().trim() || "unknown";
-
-  const idMatch = baseUrl.match(/\/comic\/(\d+)\//);
-  const id = idMatch?.[1] ?? "0";
-
+  const id = extractComicId(baseUrl);
   const sections: Section[] = [];
 
   const chapterDiv = $(".chapter.cf").first();
@@ -37,13 +62,7 @@ export function parseComicHTML(html: string, baseUrl: string): ComicInfo {
     const sectionName = $(h4).find("span").text().trim();
     if (!sectionName) return;
 
-    let ul = $(h4).next("ul");
-    if (!ul.length) {
-      ul = $(h4).next(".chapter-list").find("ul").first();
-      if (!ul.length) return;
-    }
-
-    const chapters = parseChapters(ul.html() ?? "", baseUrl);
+    const chapters = parseSectionChapters($, h4, baseUrl);
     if (chapters.length > 0) {
       sections.push({ name: sectionName, chapters });
     }
@@ -61,13 +80,7 @@ export async function parseComicPage(page: Page, url: string): Promise<ComicInfo
     throw new Error(`Failed to load comic page: ${response?.status()}`);
   }
 
-  const checkAdult = await page.$("#checkAdult");
-  if (checkAdult) {
-    await checkAdult.click();
-    await page.waitForSelector(".chapter h4", { timeout: config.adultSelectorTimeout });
-    await page.waitForTimeout(config.adultClickSettleDelay);
-  }
-
+  await handleAdultCheck(page, ".chapter h4");
   const html = await page.content();
   return parseComicHTML(html, url);
 }

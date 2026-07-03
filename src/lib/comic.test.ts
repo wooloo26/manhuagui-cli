@@ -219,6 +219,69 @@ describe("parseComicHTML", () => {
     expect(result.sections[0].chapters[0].pageCount).toBe(11);
   });
 
+  it("parses sections with chapter-page pagination div between h4 and chapter-list", () => {
+    const html = `<html><body>
+      <h1>Test</h1>
+      <div class="chapter cf mt16">
+        <div class="chapter-bar"><h3>章节全集</h3></div>
+        <h4><span>单话</span></h4>
+        <div class="chapter-page cf mt10" id="chapter-page-1">
+          <ul><li class="on"><a href="javascript:;">1-10</a></li></ul>
+        </div>
+        <div class="chapter-list cf mt10" id="chapter-list-0">
+          <ul style="display:block">
+            <li><a href="/comic/123/2.html" title="第02回"><span>第02回<i>31p</i></span></a></li>
+            <li><a href="/comic/123/1.html" title="第01回"><span>第01回<i>29p</i></span></a></li>
+          </ul>
+        </div>
+      </div>
+    </body></html>`;
+
+    const result = parseComicHTML(html, BASE_URL);
+
+    expect(result.sections).toHaveLength(1);
+    expect(result.sections[0].name).toBe("单话");
+    expect(result.sections[0].chapters).toHaveLength(2);
+    expect(result.sections[0].chapters[0].title).toBe("第01回");
+    expect(result.sections[0].chapters[1].title).toBe("第02回");
+  });
+
+  it("collects chapters from all ul elements in paginated chapter-list", () => {
+    const html = `<html><body>
+      <h1>Test</h1>
+      <div class="chapter cf mt16">
+        <h4><span>单话</span></h4>
+        <div class="chapter-page cf mt10" id="chapter-page-1">
+          <ul><li class="on"><a href="javascript:;">1-50</a></li></ul>
+        </div>
+        <div class="chapter-list cf mt10" id="chapter-list-0">
+          <ul>
+            <li><a href="/comic/123/2.html" title="第02回"><span>第02回<i>33p</i></span></a></li>
+            <li><a href="/comic/123/1.html" title="第01回"><span>第01回<i>29p</i></span></a></li>
+          </ul>
+          <ul style="display:block">
+            <li><a href="/comic/123/5.html" title="第05回"><span>第05回<i>30p</i></span></a></li>
+            <li><a href="/comic/123/4.html" title="第04回"><span>第04回<i>29p</i></span></a></li>
+            <li><a href="/comic/123/3.html" title="第03回"><span>第03回<i>31p</i></span></a></li>
+          </ul>
+        </div>
+      </div>
+    </body></html>`;
+
+    const result = parseComicHTML(html, BASE_URL);
+
+    expect(result.sections).toHaveLength(1);
+    expect(result.sections[0].name).toBe("单话");
+    expect(result.sections[0].chapters).toHaveLength(5);
+    expect(result.sections[0].chapters.map((c) => c.title)).toEqual([
+      "第01回",
+      "第02回",
+      "第03回",
+      "第04回",
+      "第05回",
+    ]);
+  });
+
   it("returns ComicInfo with id from URL even on minimal HTML", () => {
     const html = buildHTML();
     const result = parseComicHTML(html, BASE_URL);

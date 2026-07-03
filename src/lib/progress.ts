@@ -16,22 +16,15 @@ export interface ProgressData {
   chapters: Record<string, ChapterProgress>;
 }
 
-export function loadProgress(comicDir: string): ProgressData | null {
-  try {
-    const raw = readFileSync(join(comicDir, "progress.json"), "utf-8");
-    return JSON.parse(raw) as ProgressData;
-  } catch {
-    return null;
-  }
-}
-
-export function loadProgressOrWarn(comicDir: string): ProgressData | null {
+export function loadProgress(comicDir: string, warnOnError = false): ProgressData | null {
   try {
     const raw = readFileSync(join(comicDir, "progress.json"), "utf-8");
     return JSON.parse(raw) as ProgressData;
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.warn(`Failed to load progress.json: ${message}`);
+    if (warnOnError) {
+      const message = err instanceof Error ? err.message : String(err);
+      logger.warn(`Failed to load progress.json: ${message}`);
+    }
     return null;
   }
 }

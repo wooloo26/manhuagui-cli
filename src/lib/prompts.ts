@@ -2,6 +2,12 @@ import { confirm, isCancel, multiselect, text } from "@clack/prompts";
 import { CancelledError } from "./errors.js";
 import type { Section } from "./types.js";
 
+function assertNotCanceled<T>(result: T | symbol): asserts result is T {
+  if (isCancel(result)) {
+    throw new CancelledError();
+  }
+}
+
 export async function promptUrl(): Promise<string> {
   const result = await text({
     message: "Comic URL",
@@ -13,10 +19,7 @@ export async function promptUrl(): Promise<string> {
     },
   });
 
-  if (isCancel(result)) {
-    throw new CancelledError();
-  }
-
+  assertNotCanceled(result);
   return result;
 }
 
@@ -36,10 +39,7 @@ export async function promptSections(sections: Section[]): Promise<Section[]> {
     required: true,
   });
 
-  if (isCancel(selected)) {
-    throw new CancelledError();
-  }
-
+  assertNotCanceled(selected);
   return sections.filter((s) => selected.includes(s.name));
 }
 
@@ -49,10 +49,7 @@ export async function promptConfirm(count: number): Promise<boolean> {
     initialValue: true,
   });
 
-  if (isCancel(result)) {
-    throw new CancelledError();
-  }
-
+  assertNotCanceled(result);
   return result;
 }
 
@@ -62,9 +59,6 @@ export async function promptResume(done: number, total: number): Promise<boolean
     initialValue: true,
   });
 
-  if (isCancel(result)) {
-    throw new CancelledError();
-  }
-
+  assertNotCanceled(result);
   return result;
 }

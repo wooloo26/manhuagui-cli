@@ -4,9 +4,10 @@ import { defineCommand } from "citty";
 import { Listr } from "listr2";
 import type { Browser } from "playwright";
 import { chromium } from "playwright";
+import { createBrowserContext } from "./browser.js";
 import { extractChapterImages } from "./chapter.js";
 import { parseComicPage } from "./comic.js";
-import { config, initConfig, pickUserAgent, type UserConfigOverrides } from "./config.js";
+import { config, initConfig, type UserConfigOverrides } from "./config.js";
 import { CancelledError } from "./errors.js";
 import { logger } from "./logger.js";
 import {
@@ -19,20 +20,14 @@ import {
 } from "./progress.js";
 import { promptConfirm, promptResume, promptSections, promptUrl } from "./prompts.js";
 import type { Chapter, ComicInfo, Section } from "./types.js";
-import { atomicSaveJSON, humanDelay, randInt, slugify } from "./utils.js";
+import { atomicSaveJSON, humanDelay, slugify } from "./utils.js";
 
 async function launchBrowser(): Promise<Browser> {
   return chromium.launch({ headless: true });
 }
 
 async function parseComicWithSpinner(browser: Browser, url: string): Promise<ComicInfo> {
-  const ctx = await browser.newContext({
-    userAgent: pickUserAgent(),
-    viewport: {
-      width: randInt(config.viewportMinWidth, config.viewportMaxWidth),
-      height: randInt(config.viewportMinHeight, config.viewportMaxHeight),
-    },
-  });
+  const ctx = await createBrowserContext(browser);
   const page = await ctx.newPage();
 
   const s = spinner();
@@ -63,6 +58,22 @@ function applyFilters(
       .filter((s) => s.chapters.length > 0);
   }
   return result;
+}
+
+function logSectionSummary(sections: Section[]): number {
+  const total = sections.reduce((sum, s) => sum + s.chapters.length, 0);
+  logger.info(`Sections: ${sections.map((s) => `${s.name}(${s.chapters.length})`).join(", ")}`);
+  logger.info(`Total chapters: ${total}`);
+  return total;
+}
+
+function displayDryRun(sections: Section[]): void {
+  for (const section of sections) {
+    for (const ch of section.chapters) {
+      logger.info(`  [${section.name}] ${ch.title}`);
+    }
+  }
+  logger.info("Dry run complete. No files downloaded.");
 }
 
 function reportResults(
@@ -160,6 +171,52 @@ function createDownloadTasks(
   };
 }
 
+async function executeAndReport(
+  sections: Section[],
+  comic: ComicInfo,
+  url: string,
+  browser: Browser,
+  resume: boolean,
+  totalChapters: number,
+): Promise<void> {
+  const {
+    collected,
+    errors,
+    tasks: dl,
+  } = createDownloadTasks(sections, comic.title, url, browser, resume);
+  await dl.run();
+  if (Object.keys(collected).length > 0) {
+    atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), collected);
+  }
+  reportResults(collected, errors, totalChapters);
+}
+
+// interactive mode only
+async function promptResumeCheck(
+  _comic: ComicInfo,
+  sections: Section[],
+  resume: boolean,
+  comicDir: string,
+): Promise<boolean> {
+  if (resume) return true;
+
+  const progress = loadProgress(comicDir);
+  if (!progress) return false;
+
+  let done = 0;
+  let total = 0;
+  for (const s of sections) {
+    for (const c of s.chapters) {
+      total++;
+      if (progress.chapters[chapterKey(s.name, c.title)]?.status === "done") done++;
+    }
+  }
+  if (total > 0 && done > 0) {
+    return promptResume(done, total);
+  }
+  return false;
+}
+
 async function runDirect(
   url: string,
   sectionFilter: string | undefined,
@@ -189,30 +246,14 @@ async function runDirect(
       }
     }
 
-    const totalChapters = sections.reduce((sum, s) => sum + s.chapters.length, 0);
-    logger.info(`Sections: ${sections.map((s) => `${s.name}(${s.chapters.length})`).join(", ")}`);
-    logger.info(`Total chapters: ${totalChapters}`);
+    const totalChapters = logSectionSummary(sections);
 
     if (dryRun) {
-      for (const section of sections) {
-        for (const ch of section.chapters) {
-          logger.info(`  [${section.name}] ${ch.title}`);
-        }
-      }
-      logger.info("Dry run complete. No files downloaded.");
+      displayDryRun(sections);
       return;
     }
 
-    const {
-      collected,
-      errors,
-      tasks: dl,
-    } = createDownloadTasks(sections, comic.title, url, browser, resume);
-    await dl.run();
-    if (Object.keys(collected).length > 0) {
-      atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), collected);
-    }
-    reportResults(collected, errors, totalChapters);
+    await executeAndReport(sections, comic, url, browser, resume, totalChapters);
   } finally {
     await browser.close();
   }
@@ -227,35 +268,23 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
   try {
     const comic = await parseComicWithSpinner(browser, url);
 
-    let shouldResume = resume;
     const comicDir = join(config.outputBase, slugify(comic.title));
-    const progress = loadProgress(comicDir);
-
-    if (progress && !resume) {
-      let done = 0;
-      let total = 0;
-      for (const s of comic.sections) {
-        for (const c of s.chapters) {
-          total++;
-          if (progress.chapters[chapterKey(s.name, c.title)]?.status === "done") done++;
-        }
-      }
-      if (total > 0 && done > 0) {
-        shouldResume = await promptResume(done, total);
-      }
-    }
+    const shouldResume = await promptResumeCheck(comic, comic.sections, resume, comicDir);
 
     let selected = await promptSections(comic.sections);
 
-    if (shouldResume && progress) {
-      selected = filterPending(progress, selected);
-      if (selected.length === 0) {
-        outro("All chapters already downloaded.");
-        return;
+    if (shouldResume) {
+      const progress = loadProgress(comicDir);
+      if (progress) {
+        selected = filterPending(progress, selected);
+        if (selected.length === 0) {
+          outro("All chapters already downloaded.");
+          return;
+        }
       }
     }
 
-    const totalChapters = selected.reduce((sum, s) => sum + s.chapters.length, 0);
+    const totalChapters = logSectionSummary(selected);
 
     const confirmed = await promptConfirm(totalChapters);
     if (!confirmed || isCancel(confirmed)) {
@@ -264,25 +293,12 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
     }
 
     if (dryRun) {
-      for (const section of selected) {
-        for (const ch of section.chapters) {
-          logger.info(`  [${section.name}] ${ch.title}`);
-        }
-      }
+      displayDryRun(selected);
       outro(`Dry run complete. ${totalChapters} chapters would be downloaded.`);
       return;
     }
 
-    const {
-      collected,
-      errors,
-      tasks: dl,
-    } = createDownloadTasks(selected, comic.title, url, browser, shouldResume);
-    await dl.run();
-    if (Object.keys(collected).length > 0) {
-      atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), collected);
-    }
-    reportResults(collected, errors, totalChapters);
+    await executeAndReport(selected, comic, url, browser, shouldResume, totalChapters);
   } finally {
     await browser.close();
   }

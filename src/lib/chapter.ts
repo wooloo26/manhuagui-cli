@@ -1,10 +1,11 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { Browser, BrowserContext, Page as PlaywrightPage } from "playwright";
-import { config, pickUserAgent } from "./config.js";
+import type { Browser, BrowserContext, Page as PlaywrightPage, Response } from "playwright";
+import { createBrowserContext, handleAdultCheck } from "./browser.js";
+import { config } from "./config.js";
 import { rotateHost } from "./download.js";
 import { logger } from "./logger.js";
-import { ensureDir, randInt, sleep } from "./utils.js";
+import { ensureDir, sleep } from "./utils.js";
 
 export function computePadLength(count: number): number {
   return Math.max(config.padMinLength, String(count).length);
@@ -25,7 +26,7 @@ export function buildFilePath(
   return join(outputDir, `${padNum}.${ext}`);
 }
 
-async function getPageCount(page: PlaywrightPage): Promise<number> {
+export async function getPageCount(page: PlaywrightPage): Promise<number> {
   return page.evaluate(() => {
     const pageSpan = document.querySelector("#page");
     if (pageSpan?.parentElement) {
@@ -40,8 +41,24 @@ async function getPageCount(page: PlaywrightPage): Promise<number> {
   });
 }
 
-async function collectImageUrls(page: PlaywrightPage, pageCount: number): Promise<string[]> {
+export async function getSubPageUrls(page: PlaywrightPage): Promise<string[]> {
+  try {
+    await page.waitForSelector("#pagination a", { timeout: config.tabLoadTimeout });
+    return await page.evaluate(() => {
+      const links = document.querySelectorAll("#pagination a");
+      if (links.length <= 1) return [];
+      return Array.from(links)
+        .map((a) => (a as HTMLAnchorElement).href)
+        .filter((href) => href.startsWith("http"));
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function collectImageUrls(page: PlaywrightPage, pageCount: number): Promise<string[]> {
   const urls: string[] = [];
+  const pageUrl = page.url();
   let currentUrl = await page.$eval("#mangaFile", (img) => (img as HTMLImageElement).src);
   urls.push(currentUrl);
 
@@ -61,11 +78,49 @@ async function collectImageUrls(page: PlaywrightPage, pageCount: number): Promis
     );
 
     await page.waitForTimeout(config.imageLoadDelay);
+
+    if (page.url() !== pageUrl) break;
+
     currentUrl = await page.$eval("#mangaFile", (img) => (img as HTMLImageElement).src);
     urls.push(currentUrl);
   }
 
   return urls;
+}
+
+async function navigateToChapterPage(page: PlaywrightPage, url: string): Promise<void> {
+  await page.goto(url, {
+    waitUntil: "domcontentloaded",
+    timeout: config.pageLoadTimeout,
+  });
+
+  await handleAdultCheck(page);
+  await page.waitForSelector("#mangaFile", { timeout: config.chapterSelectorTimeout });
+}
+
+function validateImageResponse(response: Response | null): void {
+  if (response?.status() !== 200) {
+    throw new Error(`HTTP ${response?.status() ?? "no response"}`);
+  }
+  const contentType = response?.headers()?.["content-type"] ?? "";
+  if (contentType && !contentType.startsWith("image/")) {
+    throw new Error(`Unexpected content type: ${contentType}`);
+  }
+}
+
+async function fetchImageAsBase64(page: PlaywrightPage): Promise<string> {
+  return page.evaluate(async () => {
+    const res = await fetch(window.location.href);
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+    const buf = await res.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    let binary = "";
+    const step = 0x8000;
+    for (let j = 0; j < bytes.length; j += step) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(j, j + step)));
+    }
+    return btoa(binary);
+  });
 }
 
 async function downloadImage(
@@ -88,25 +143,8 @@ async function downloadImage(
         waitUntil: "load",
         timeout: config.pageLoadTimeout,
       });
-      if (response?.status() !== 200) {
-        throw new Error(`HTTP ${response?.status() ?? "no response"}`);
-      }
-      const contentType = response?.headers()?.["content-type"] ?? "";
-      if (contentType && !contentType.startsWith("image/")) {
-        throw new Error(`Unexpected content type: ${contentType}`);
-      }
-      const base64 = await dlPage.evaluate(async () => {
-        const res = await fetch(window.location.href);
-        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-        const buf = await res.arrayBuffer();
-        const bytes = new Uint8Array(buf);
-        let binary = "";
-        const step = 0x8000;
-        for (let j = 0; j < bytes.length; j += step) {
-          binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(j, j + step)));
-        }
-        return btoa(binary);
-      });
+      validateImageResponse(response);
+      const base64 = await fetchImageAsBase64(dlPage);
       writeFileSync(filePath, Buffer.from(base64, "base64"));
       return true;
     } catch {
@@ -154,6 +192,25 @@ async function downloadImages(
   }
 }
 
+async function collectImageUrlsFromSubPages(
+  page: PlaywrightPage,
+  subPageUrls: string[],
+): Promise<string[]> {
+  const allUrls: string[] = [];
+  for (let i = 0; i < subPageUrls.length; i++) {
+    if (i > 0) {
+      await navigateToChapterPage(page, subPageUrls[i]);
+    }
+
+    const tabPageCount = await getPageCount(page);
+    if (tabPageCount <= 0) continue;
+
+    const tabUrls = await collectImageUrls(page, tabPageCount);
+    allUrls.push(...tabUrls);
+  }
+  return allUrls;
+}
+
 export async function extractChapterImages(
   chapterUrl: string,
   browser: Browser,
@@ -161,31 +218,27 @@ export async function extractChapterImages(
 ): Promise<string[]> {
   ensureDir(outputDir);
 
-  const context = await browser.newContext({
-    userAgent: pickUserAgent(),
-    viewport: {
-      width: randInt(config.viewportMinWidth, config.viewportMaxWidth),
-      height: randInt(config.viewportMinHeight, config.viewportMaxHeight),
-    },
-  });
+  const context = await createBrowserContext(browser);
   const page = await context.newPage();
 
   try {
-    await page.goto(chapterUrl, {
-      waitUntil: "domcontentloaded",
-      timeout: config.pageLoadTimeout,
-    });
+    await navigateToChapterPage(page, chapterUrl);
 
-    await page.waitForSelector("#mangaFile", { timeout: config.chapterSelectorTimeout });
+    const subPageUrls = await getSubPageUrls(page);
 
-    const pageCount = await getPageCount(page);
-    if (pageCount <= 0) return [];
+    let urls: string[];
+    if (subPageUrls.length > 0) {
+      urls = await collectImageUrlsFromSubPages(page, subPageUrls);
+    } else {
+      const pageCount = await getPageCount(page);
+      if (pageCount <= 0) return [];
+      urls = await collectImageUrls(page, pageCount);
+    }
 
-    const urls = await collectImageUrls(page, pageCount);
+    if (urls.length === 0) return [];
+
     const padLen = computePadLength(urls.length);
-
     await downloadImages(context, chapterUrl, outputDir, urls, padLen);
-
     return urls;
   } finally {
     await context.close();

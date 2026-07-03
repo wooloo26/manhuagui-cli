@@ -24,6 +24,7 @@ export interface Config {
   pageLoadTimeout: number;
   chapterSelectorTimeout: number;
   adultSelectorTimeout: number;
+  tabLoadTimeout: number;
   adultClickSettleDelay: number;
   nextPageTimeout: number;
   viewportMinWidth: number;
@@ -72,6 +73,7 @@ const DEFAULTS: Config = {
   chapterSelectorTimeout: 30000,
   adultSelectorTimeout: 10000,
   adultClickSettleDelay: 300,
+  tabLoadTimeout: 5000,
   nextPageTimeout: 15000,
   viewportMinWidth: 1200,
   viewportMaxWidth: 1600,
