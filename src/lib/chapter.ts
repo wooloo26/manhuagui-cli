@@ -263,16 +263,17 @@ export async function extractChapterImages(opts: {
     if (subPageUrls.length > 0) {
       urls = await collectImageUrlsFromSubPages(page, subPageUrls);
     } else {
-      const pageCount = await getPageCount(page);
-      if (pageCount <= 0) return [];
-      urls = await collectImageUrls(page, pageCount);
+      const expectedCount = await getPageCount(page);
+      if (expectedCount <= 0) return [];
+      onProgress?.(0, expectedCount, 0);
+      urls = await collectImageUrls(page, expectedCount);
     }
 
     if (urls.length === 0) return [];
 
     const padLen = computePadLength(urls.length);
-    const pageCount = urls.length;
-    onProgress?.(0, pageCount, 0);
+    const actualCount = urls.length;
+    onProgress?.(0, actualCount, 0);
     await downloadImages({
       context,
       chapterUrl,
@@ -280,7 +281,7 @@ export async function extractChapterImages(opts: {
       urls,
       padLen,
       tracker,
-      onProgress: (downloaded, bytes) => onProgress?.(downloaded, pageCount, bytes),
+      onProgress: (downloaded, bytes) => onProgress?.(downloaded, actualCount, bytes),
     });
     return urls;
   } finally {

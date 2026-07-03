@@ -219,11 +219,11 @@ export class DownloadUI {
       if (this.chapterPageTotal <= 0) {
         const pgInfo = `${chalk.white("0")}/${chalk.white("?")} pg`;
         const secInfo = chalk.magenta(this.sectionName || "--");
-        detailLine = ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${chalk.gray("fetching...")}`;
+        detailLine = ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${chalk.gray("loading page...")}`;
       } else if (this.chapterPageDone <= 0) {
         const pgInfo = `${chalk.white("0")}/${chalk.white(String(this.chapterPageTotal))} pg`;
         const secInfo = chalk.magenta(this.sectionName || "--");
-        detailLine = ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${chalk.gray("downloading...")}`;
+        detailLine = ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${chalk.gray("collecting urls...")}`;
       } else {
         const pgInfo = `${chalk.white(String(this.chapterPageDone))}/${chalk.white(String(this.chapterPageTotal))} pg`;
         const secInfo = chalk.magenta(this.sectionName || "--");
