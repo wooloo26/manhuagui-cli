@@ -1,0 +1,85 @@
+{
+  "name": "manhuagui-cli",
+  "version": "0.0.0",
+  "description": "漫画柜 (manhuagui.com) 漫画下载命令行工具 / CLI tool for downloading manhua from manhuagui.com",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    ".": "./dist/index.js",
+    "./package.json": "./package.json"
+  },
+  "license": "MIT",
+  "author": "wooloo26",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/wooloo26/manhuagui-cli.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wooloo26/manhuagui-cli/issues"
+  },
+  "homepage": "https://github.com/wooloo26/manhuagui-cli#readme",
+  "keywords": [
+    "manhuagui",
+    "manga",
+    "manhua",
+    "comic",
+    "scraper",
+    "downloader",
+    "cli"
+  ],
+  "bin": {
+    "manhuagui-cli": "dist/index.js"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "start": "node dist/index.js",
+    "test": "vitest run",
+    "check": "biome check .",
+    "format": "biome check --write .",
+    "postinstall": "npx playwright install chromium",
+    "release": "release-it",
+    "prepare": "simple-git-hooks",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "@clack/prompts": "^1.6.0",
+    "cheerio": "^1.2.0",
+    "citty": "^0.2.2",
+    "listr2": "^10.2.2",
+    "playwright": "^1.61.1"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.2",
+    "@release-it/conventional-changelog": "^11.0.1",
+    "@types/node": "^26.1.0",
+    "lint-staged": "^17.0.8",
+    "release-it": "^20.2.1",
+    "simple-git-hooks": "^2.13.1",
+    "tsx": "^4.22.5",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "README_EN.md"
+  ],
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "*.{ts,js,mjs,cjs}": [
+      "biome check --write --no-errors-on-unmatched"
+    ],
+    "*.{json,jsonc,md}": [
+      "biome check --write --no-errors-on-unmatched"
+    ]
+  }
+}
