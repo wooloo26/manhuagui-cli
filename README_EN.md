@@ -12,6 +12,8 @@
 - Random User-Agent and viewport rotation to simulate real users
 - CDN host rotation with automatic retry (up to 3 attempts) on image download failure
 - Concurrent image downloads within a chapter, sequential chapters with human-like delays
+- **Real-time progress bars**: speed, per-chapter progress, overall progress, and ETA estimation
+- **Preview mode** (`--dry-run`): list pending chapters without downloading
 - Resumable downloads: progress saved to `progress.json`, resume with `--resume` / `-r`
 - Clean output structure: `output/<comic-title>/<section>/<chapter>/001.webp`
 

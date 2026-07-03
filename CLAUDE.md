@@ -8,7 +8,7 @@ A CLI tool for downloading manhua (comics) from manhuagui.com. Supports both int
 - **citty** — CLI command definition & argument parsing
 - **cheerio** — Server-side HTML parsing
 - **playwright** — Headless Chromium for anti-bot evasion & image download
-- **listr2** — Terminal progress task list
+- **log-update** + **chalk** — Terminal progress bars with speed & ETA
 - **@clack/prompts** — Interactive prompts
 - **vitest** + **biome** — Testing & linting/formatting
 
@@ -75,12 +75,16 @@ src/
     ├── cli.ts        # Command orchestration (interactive/direct mode)
     ├── comic.ts      # Comic page parsing (chapter list)
     ├── chapter.ts    # Chapter image extraction & download
+    ├── tasks.ts      # Download pipeline (section/chapter iteration)
     ├── download.ts   # CDN host rotation download
+    ├── browser.ts    # Playwright browser context (anti-detection)
     ├── config.ts     # Environment variables & defaults
     ├── types.ts      # Type definitions
     ├── utils.ts      # Utility functions
     ├── prompts.ts    # Interactive prompts
     ├── progress.ts   # Download progress & resume
+    ├── ui.ts         # Terminal progress display (log-update + chalk)
+    ├── speed.ts      # Speed tracking & ETA estimation
     ├── logger.ts     # Logging
     └── errors.ts     # Custom errors
 ```
