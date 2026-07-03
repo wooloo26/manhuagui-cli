@@ -58,7 +58,7 @@ export async function getSubPageUrls(page: PlaywrightPage): Promise<string[]> {
 
 export async function collectImageUrls(page: PlaywrightPage, pageCount: number): Promise<string[]> {
   const urls: string[] = [];
-  const pageUrl = page.url();
+  const pagePath = page.url().split("#")[0];
   let currentUrl = await page.$eval("#mangaFile", (img) => (img as HTMLImageElement).src);
   urls.push(currentUrl);
 
@@ -79,7 +79,7 @@ export async function collectImageUrls(page: PlaywrightPage, pageCount: number):
 
     await page.waitForTimeout(config.imageLoadDelay);
 
-    if (page.url() !== pageUrl) break;
+    if (page.url().split("#")[0] !== pagePath) break;
 
     currentUrl = await page.$eval("#mangaFile", (img) => (img as HTMLImageElement).src);
     urls.push(currentUrl);
