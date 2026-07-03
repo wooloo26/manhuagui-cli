@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.0.2](https://github.com/wooloo26/manhuagui-cli/compare/v1.0.1...v1.0.2) (2026-07-03)
+
+### Features
+
+* **chapter:** report page count early and clarify progress labels ([078ca3c](https://github.com/wooloo26/manhuagui-cli/commit/078ca3c3723fa7e6784daf215460f809aa5da932))
+* show pending section stats as initial title and add total ETA ([4873331](https://github.com/wooloo26/manhuagui-cli/commit/48733312ecfef6ea89db2c462ac36ec7b6f697a8))
+* **ui:** show overall page count and use listing page count for initial chapter display ([37d789a](https://github.com/wooloo26/manhuagui-cli/commit/37d789abd43392ff77077920b3f230e1bf9b7f1f))
+
+### Bug Fixes
+
+* **config:** reduce default chapter delay range ([b35fadd](https://github.com/wooloo26/manhuagui-cli/commit/b35faddd859d2617802cfef40149e0646b15d677))
+
 ## [1.0.1](https://github.com/wooloo26/manhuagui-cli/compare/v1.0.0...v1.0.1) (2026-07-03)
 
 ### Features

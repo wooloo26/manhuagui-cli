@@ -1,6 +1,6 @@
 {
   "name": "manhuagui-cli",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "漫画柜 (manhuagui.com) 漫画下载命令行工具 / CLI tool for downloading manhua from manhuagui.com",
   "type": "module",
   "main": "dist/index.js",
