@@ -1,6 +1,3 @@
-import { existsSync, readFileSync } from "node:fs";
-import { homedir } from "node:os";
-import { join } from "node:path";
 import { logger, setLogLevel } from "./logger.js";
 
 try {
@@ -107,28 +104,9 @@ function loadFromEnv(): UserConfigOverrides {
   return overrides;
 }
 
-function readJSONFile(filePath: string): UserConfigOverrides | null {
-  try {
-    if (existsSync(filePath)) {
-      const content = readFileSync(filePath, "utf-8");
-      return JSON.parse(content) as UserConfigOverrides;
-    }
-  } catch {
-    /* ignore invalid config files */
-  }
-  return null;
-}
-
-function loadConfigFile(): UserConfigOverrides {
-  const globalFile = readJSONFile(join(homedir(), ".config", "manhuagui-cli", "config.json"));
-  const projectFile = readJSONFile(join(process.cwd(), ".manhuaguirc.json"));
-  return { ...globalFile, ...projectFile };
-}
-
 function buildConfig(overrides?: UserConfigOverrides): Config {
-  const file = loadConfigFile();
   const env = loadFromEnv();
-  return { ...DEFAULTS, ...env, ...file, ...overrides };
+  return { ...DEFAULTS, ...env, ...overrides };
 }
 
 export let config: Config = buildConfig();

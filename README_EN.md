@@ -14,22 +14,25 @@
 
 ## Table of Contents
 
-- [Quick Start](#quick-start)
-- [Features](#features)
-- [Installation](#installation)
-- [Usage](#usage)
-  - [Interactive Mode](#interactive-mode)
-  - [CLI Mode](#cli-mode)
-  - [Options](#options)
-- [Configuration](#configuration)
-  - [Priority](#priority)
-  - [Config Files](#config-files)
-  - [Environment Variables](#environment-variables)
-- [Output Structure](#output-structure)
-- [Development](#development)
-- [Changelog](#changelog)
-- [License](#license)
-- [Disclaimer](#disclaimer)
+- [manhuagui-cli](#manhuagui-cli)
+  - [Table of Contents](#table-of-contents)
+  - [Quick Start](#quick-start)
+  - [Features](#features)
+  - [Installation](#installation)
+    - [npm Global Install (Recommended)](#npm-global-install-recommended)
+    - [From Source](#from-source)
+  - [Usage](#usage)
+    - [Interactive Mode](#interactive-mode)
+    - [CLI Mode](#cli-mode)
+    - [Options](#options)
+  - [Configuration](#configuration)
+    - [Priority](#priority)
+    - [Environment Variables](#environment-variables)
+  - [Output Structure](#output-structure)
+  - [Development](#development)
+  - [Changelog](#changelog)
+  - [License](#license)
+  - [Disclaimer](#disclaimer)
 
 ## Quick Start
 
@@ -104,8 +107,6 @@ Interactive flow:
 4. Confirm and start downloading
 
 ```text
-  manhuagui-cli v1.0.1
-
 Input comic URL:
   https://www.manhuagui.com/comic/12345/
 
@@ -167,29 +168,8 @@ In addition to CLI arguments, behavior can be customized via config files and en
 ### Priority
 
 ```
-CLI args > config files > environment variables > defaults
+CLI args > environment variables > defaults
 ```
-
-### Config Files
-
-Two JSON config file locations are supported. Project-level overrides global-level fields.
-
-| Location     | Path                                                                         |
-| ------------ | ---------------------------------------------------------------------------- |
-| Project      | `<cwd>/.manhuaguirc.json`                                                    |
-| Global       | `~/.config/manhuagui-cli/config.json`                                        |
-| (Windows)    | `%USERPROFILE%\.config\manhuagui-cli\config.json`                            |
-
-```json
-{
-  "outputBase": "./downloads",
-  "imageConcurrency": 4,
-  "retryCount": 5,
-  "logLevel": "debug"
-}
-```
-
-All fields are optional; defaults are used for any omitted field.
 
 ### Environment Variables
 
