@@ -37,15 +37,15 @@ export function saveProgress(comicDir: string, data: ProgressData): void {
   atomicSaveJSON(join(comicDir, "progress.json"), data);
 }
 
-export function markChapter(
-  comicDir: string,
-  progress: ProgressData,
-  key: string,
-  status: "done" | "failed",
-  extra?: { pageCount?: number; error?: string },
-): void {
-  progress.chapters[key] = { status, ...extra };
-  saveProgress(comicDir, progress);
+export function markChapter(opts: {
+  comicDir: string;
+  progress: ProgressData;
+  key: string;
+  status: "done" | "failed";
+  extra?: { pageCount?: number; error?: string };
+}): void {
+  opts.progress.chapters[opts.key] = { status: opts.status, ...opts.extra };
+  saveProgress(opts.comicDir, opts.progress);
 }
 
 export function chapterKey(sectionName: string, chapterTitle: string): string {

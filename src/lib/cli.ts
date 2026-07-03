@@ -1,26 +1,18 @@
 import { join } from "node:path";
 import { intro, isCancel, outro, spinner } from "@clack/prompts";
 import { defineCommand } from "citty";
-import { Listr } from "listr2";
 import type { Browser } from "playwright";
 import { chromium } from "playwright";
 import { createBrowserContext } from "./browser.js";
-import { extractChapterImages } from "./chapter.js";
 import { parseComicPage } from "./comic.js";
 import { config, initConfig, type UserConfigOverrides } from "./config.js";
 import { CancelledError } from "./errors.js";
 import { logger } from "./logger.js";
-import {
-  chapterKey,
-  createProgress,
-  filterPending,
-  loadProgress,
-  markChapter,
-  saveProgress,
-} from "./progress.js";
+import { chapterKey, filterPending, loadProgress } from "./progress.js";
 import { promptConfirm, promptResume, promptSections, promptUrl } from "./prompts.js";
-import type { Chapter, ComicInfo, Section } from "./types.js";
-import { atomicSaveJSON, humanDelay, slugify } from "./utils.js";
+import { createDownloadTasks } from "./tasks.js";
+import type { ComicInfo, Section } from "./types.js";
+import { atomicSaveJSON, slugify } from "./utils.js";
 
 async function launchBrowser(): Promise<Browser> {
   return chromium.launch({ headless: true });
@@ -91,99 +83,20 @@ function reportResults(
   logger.info(`Done. Processed ${totalChapters} chapters.`);
 }
 
-async function processChapter(
-  chapter: Chapter,
-  sectionName: string,
-  comicTitle: string,
-  browser: Browser,
-): Promise<{ title: string; urls: string[]; chapterUrl: string } | null> {
-  const dirName = slugify(chapter.title);
-  const outputDir = join(config.outputBase, slugify(comicTitle), slugify(sectionName), dirName);
-
-  const urls = await extractChapterImages(chapter.url, browser, outputDir);
-  if (urls.length === 0) return null;
-
-  return { title: chapter.title, urls, chapterUrl: chapter.url };
-}
-
-function createDownloadTasks(
-  sections: Section[],
-  comicTitle: string,
-  comicUrl: string,
-  browser: Browser,
-  resume: boolean,
-) {
-  const collected: Record<string, { urls: string[]; chapterUrl: string }> = {};
-  const errors: string[] = [];
-  const comicDir = join(config.outputBase, slugify(comicTitle));
-  const progress = resume
-    ? (loadProgress(comicDir) ?? createProgress(comicTitle, comicUrl))
-    : createProgress(comicTitle, comicUrl);
-  saveProgress(comicDir, progress);
-
-  return {
-    collected,
-    errors,
-    tasks: new Listr(
-      sections.map((section) => ({
-        title: section.name,
-        task: async (_, task) => {
-          const total = section.chapters.length;
-          const label = section.name;
-
-          for (let i = 0; i < section.chapters.length; i++) {
-            const ch = section.chapters[i];
-            task.title = `${label}  ${i + 1}/${total}`;
-
-            try {
-              const r = await processChapter(ch, section.name, comicTitle, browser);
-              if (r) {
-                collected[r.title] = { urls: r.urls, chapterUrl: r.chapterUrl };
-                markChapter(comicDir, progress, chapterKey(section.name, ch.title), "done", {
-                  pageCount: r.urls.length,
-                });
-              } else {
-                markChapter(comicDir, progress, chapterKey(section.name, ch.title), "failed", {
-                  error: "No images found",
-                });
-              }
-            } catch (err) {
-              const errMsg = err instanceof Error ? err.message : String(err);
-              errors.push(`${ch.title}: ${errMsg}`);
-              markChapter(comicDir, progress, chapterKey(section.name, ch.title), "failed", {
-                error: errMsg,
-              });
-            }
-
-            if (i < section.chapters.length - 1) {
-              await humanDelay(config.chapterDelayMin, config.chapterDelayMax);
-            }
-          }
-
-          task.title = label;
-        },
-      })),
-      {
-        concurrent: false,
-        rendererOptions: { collapseSubtasks: false },
-      },
-    ),
-  };
-}
-
-async function executeAndReport(
-  sections: Section[],
-  comic: ComicInfo,
-  url: string,
-  browser: Browser,
-  resume: boolean,
-  totalChapters: number,
-): Promise<void> {
+async function executeAndReport(opts: {
+  sections: Section[];
+  comic: ComicInfo;
+  url: string;
+  browser: Browser;
+  resume: boolean;
+  totalChapters: number;
+}): Promise<void> {
+  const { sections, comic, url, browser, resume, totalChapters } = opts;
   const {
     collected,
     errors,
     tasks: dl,
-  } = createDownloadTasks(sections, comic.title, url, browser, resume);
+  } = createDownloadTasks({ sections, comicTitle: comic.title, comicUrl: url, browser, resume });
   await dl.run();
   if (Object.keys(collected).length > 0) {
     atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), collected);
@@ -192,12 +105,13 @@ async function executeAndReport(
 }
 
 // interactive mode only
-async function promptResumeCheck(
-  _comic: ComicInfo,
-  sections: Section[],
-  resume: boolean,
-  comicDir: string,
-): Promise<boolean> {
+async function promptResumeCheck(opts: {
+  comic: ComicInfo;
+  sections: Section[];
+  resume: boolean;
+  comicDir: string;
+}): Promise<boolean> {
+  const { comic: _comic, sections, resume, comicDir } = opts;
   if (resume) return true;
 
   const progress = loadProgress(comicDir);
@@ -217,13 +131,14 @@ async function promptResumeCheck(
   return false;
 }
 
-async function runDirect(
-  url: string,
-  sectionFilter: string | undefined,
-  chapterFilter: string | undefined,
-  resume: boolean,
-  dryRun: boolean,
-) {
+async function runDirect(opts: {
+  url: string;
+  sectionFilter: string | undefined;
+  chapterFilter: string | undefined;
+  resume: boolean;
+  dryRun: boolean;
+}) {
+  const { url, sectionFilter, chapterFilter, resume, dryRun } = opts;
   const browser = await launchBrowser();
 
   try {
@@ -253,7 +168,7 @@ async function runDirect(
       return;
     }
 
-    await executeAndReport(sections, comic, url, browser, resume, totalChapters);
+    await executeAndReport({ sections, comic, url, browser, resume, totalChapters });
   } finally {
     await browser.close();
   }
@@ -269,7 +184,12 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
     const comic = await parseComicWithSpinner(browser, url);
 
     const comicDir = join(config.outputBase, slugify(comic.title));
-    const shouldResume = await promptResumeCheck(comic, comic.sections, resume, comicDir);
+    const shouldResume = await promptResumeCheck({
+      comic,
+      sections: comic.sections,
+      resume,
+      comicDir,
+    });
 
     let selected = await promptSections(comic.sections);
 
@@ -298,7 +218,14 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
       return;
     }
 
-    await executeAndReport(selected, comic, url, browser, shouldResume, totalChapters);
+    await executeAndReport({
+      sections: selected,
+      comic,
+      url,
+      browser,
+      resume: shouldResume,
+      totalChapters,
+    });
   } finally {
     await browser.close();
   }
@@ -368,7 +295,13 @@ export const command = defineCommand({
     initConfig(cliOverrides);
     try {
       if (args.url) {
-        await runDirect(args.url, args.section, args.chapter, args.resume, args["dry-run"]);
+        await runDirect({
+          url: args.url,
+          sectionFilter: args.section,
+          chapterFilter: args.chapter,
+          resume: args.resume,
+          dryRun: args["dry-run"],
+        });
       } else {
         await runInteractive(args.resume, args["dry-run"]);
       }

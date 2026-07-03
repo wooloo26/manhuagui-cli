@@ -5,6 +5,7 @@ import { createBrowserContext, handleAdultCheck } from "./browser.js";
 import { config } from "./config.js";
 import { rotateHost } from "./download.js";
 import { logger } from "./logger.js";
+import type { SpeedTracker } from "./speed.js";
 import { ensureDir, sleep } from "./utils.js";
 
 export function computePadLength(count: number): number {
@@ -16,14 +17,14 @@ export function extractExtension(url: string): string {
   return match?.[1] ?? "webp";
 }
 
-export function buildFilePath(
-  outputDir: string,
-  index: number,
-  padLen: number,
-  ext: string,
-): string {
-  const padNum = String(index + 1).padStart(padLen, "0");
-  return join(outputDir, `${padNum}.${ext}`);
+export function buildFilePath(opts: {
+  outputDir: string;
+  index: number;
+  padLen: number;
+  ext: string;
+}): string {
+  const padNum = String(opts.index + 1).padStart(opts.padLen, "0");
+  return join(opts.outputDir, `${padNum}.${opts.ext}`);
 }
 
 export async function getPageCount(page: PlaywrightPage): Promise<number> {
@@ -123,21 +124,29 @@ async function fetchImageAsBase64(page: PlaywrightPage): Promise<string> {
   });
 }
 
-async function downloadImage(
-  dlPage: PlaywrightPage,
-  chapterUrl: string,
-  url: string,
-  outputDir: string,
-  imageIndex: number,
-  padLen: number,
-): Promise<boolean> {
+interface DownloadResult {
+  ok: boolean;
+  bytes: number;
+  durationMs: number;
+}
+
+async function downloadImage(opts: {
+  dlPage: PlaywrightPage;
+  chapterUrl: string;
+  url: string;
+  outputDir: string;
+  imageIndex: number;
+  padLen: number;
+}): Promise<DownloadResult> {
+  const { dlPage, chapterUrl, url, outputDir, imageIndex, padLen } = opts;
   const ext = extractExtension(url);
-  const filePath = buildFilePath(outputDir, imageIndex, padLen, ext);
+  const filePath = buildFilePath({ outputDir, index: imageIndex, padLen, ext });
 
   let downloadUrl = url;
 
   for (let attempt = 0; attempt < config.retryCount; attempt++) {
     try {
+      const started = Date.now();
       const response = await dlPage.goto(downloadUrl, {
         referer: chapterUrl,
         waitUntil: "load",
@@ -145,8 +154,9 @@ async function downloadImage(
       });
       validateImageResponse(response);
       const base64 = await fetchImageAsBase64(dlPage);
-      writeFileSync(filePath, Buffer.from(base64, "base64"));
-      return true;
+      const buffer = Buffer.from(base64, "base64");
+      writeFileSync(filePath, buffer);
+      return { ok: true, bytes: buffer.length, durationMs: Date.now() - started };
     } catch {
       if (attempt < config.retryCount - 1) {
         downloadUrl = rotateHost(downloadUrl);
@@ -156,16 +166,18 @@ async function downloadImage(
   }
 
   logger.warn(`Failed to download after ${config.retryCount} retries: ${url}`);
-  return false;
+  return { ok: false, bytes: 0, durationMs: 0 };
 }
 
-async function downloadImages(
-  context: BrowserContext,
-  chapterUrl: string,
-  outputDir: string,
-  urls: string[],
-  padLen: number,
-): Promise<void> {
+async function downloadImages(opts: {
+  context: BrowserContext;
+  chapterUrl: string;
+  outputDir: string;
+  urls: string[];
+  padLen: number;
+  tracker: SpeedTracker;
+}): Promise<void> {
+  const { context, chapterUrl, outputDir, urls, padLen, tracker } = opts;
   const concurrency = Math.min(config.imageConcurrency, urls.length);
   const downloadPages = await Promise.all(
     Array.from({ length: concurrency }, () => context.newPage()),
@@ -177,11 +189,24 @@ async function downloadImages(
 
       const results = await Promise.all(
         batch.map((url, idx) =>
-          downloadImage(downloadPages[idx], chapterUrl, url, outputDir, i + idx, padLen),
+          downloadImage({
+            dlPage: downloadPages[idx],
+            chapterUrl,
+            url,
+            outputDir,
+            imageIndex: i + idx,
+            padLen,
+          }),
         ),
       );
 
-      if (results.some((r) => !r)) return;
+      for (const r of results) {
+        if (r.ok) {
+          tracker.record(r.bytes, r.durationMs);
+        }
+      }
+
+      if (results.some((r) => !r.ok)) return;
 
       if (config.downloadDelay > 0) {
         await sleep(Math.round(config.downloadDelay * (0.5 + Math.random())));
@@ -211,11 +236,13 @@ async function collectImageUrlsFromSubPages(
   return allUrls;
 }
 
-export async function extractChapterImages(
-  chapterUrl: string,
-  browser: Browser,
-  outputDir: string,
-): Promise<string[]> {
+export async function extractChapterImages(opts: {
+  chapterUrl: string;
+  browser: Browser;
+  outputDir: string;
+  tracker: SpeedTracker;
+}): Promise<string[]> {
+  const { chapterUrl, browser, outputDir, tracker } = opts;
   ensureDir(outputDir);
 
   const context = await createBrowserContext(browser);
@@ -238,7 +265,7 @@ export async function extractChapterImages(
     if (urls.length === 0) return [];
 
     const padLen = computePadLength(urls.length);
-    await downloadImages(context, chapterUrl, outputDir, urls, padLen);
+    await downloadImages({ context, chapterUrl, outputDir, urls, padLen, tracker });
     return urls;
   } finally {
     await context.close();

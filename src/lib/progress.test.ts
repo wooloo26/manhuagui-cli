@@ -73,7 +73,13 @@ describe("markChapter", () => {
     const comicDir = join(testDir, "mark-done");
     const progress = createProgress("Test", "https://example.com");
 
-    markChapter(comicDir, progress, chapterKey("Vol 1", "Ch1"), "done", { pageCount: 42 });
+    markChapter({
+      comicDir,
+      progress,
+      key: chapterKey("Vol 1", "Ch1"),
+      status: "done",
+      extra: { pageCount: 42 },
+    });
 
     const loaded = loadProgress(comicDir);
     expect(loaded?.chapters["Vol 1::Ch1"]).toEqual({ status: "done", pageCount: 42 });
@@ -83,8 +89,12 @@ describe("markChapter", () => {
     const comicDir = join(testDir, "mark-failed");
     const progress = createProgress("Test", "https://example.com");
 
-    markChapter(comicDir, progress, chapterKey("Vol 1", "Ch2"), "failed", {
-      error: "Connection error",
+    markChapter({
+      comicDir,
+      progress,
+      key: chapterKey("Vol 1", "Ch2"),
+      status: "failed",
+      extra: { error: "Connection error" },
     });
 
     const loaded = loadProgress(comicDir);
@@ -111,8 +121,20 @@ describe("filterPending", () => {
     ];
 
     const progress = createProgress("Test", "https://example.com");
-    markChapter(testDir, progress, "Vol 1::Ch1", "done", { pageCount: 10 });
-    markChapter(testDir, progress, "Vol 2::Ch3", "done", { pageCount: 5 });
+    markChapter({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "done",
+      extra: { pageCount: 10 },
+    });
+    markChapter({
+      comicDir: testDir,
+      progress,
+      key: "Vol 2::Ch3",
+      status: "done",
+      extra: { pageCount: 5 },
+    });
 
     const filtered = filterPending(progress, sections);
 
@@ -126,7 +148,13 @@ describe("filterPending", () => {
     const sections = [section("Vol 1", [chapter("Ch1")])];
 
     const progress = createProgress("Test", "https://example.com");
-    markChapter(testDir, progress, "Vol 1::Ch1", "done", { pageCount: 10 });
+    markChapter({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "done",
+      extra: { pageCount: 10 },
+    });
 
     const filtered = filterPending(progress, sections);
     expect(filtered).toEqual([]);
@@ -136,7 +164,13 @@ describe("filterPending", () => {
     const sections = [section("Vol 1", [chapter("Ch1")])];
 
     const progress = createProgress("Test", "https://example.com");
-    markChapter(testDir, progress, "Vol 1::Ch1", "failed", { error: "timeout" });
+    markChapter({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "failed",
+      extra: { error: "timeout" },
+    });
 
     const filtered = filterPending(progress, sections);
     expect(filtered).toHaveLength(1);

@@ -77,23 +77,33 @@ describe("extractExtension", () => {
 
 describe("buildFilePath", () => {
   it("builds path with padded index", () => {
-    expect(buildFilePath("/output", 0, 3, "jpg")).toBe(join("/output", "001.jpg"));
+    expect(buildFilePath({ outputDir: "/output", index: 0, padLen: 3, ext: "jpg" })).toBe(
+      join("/output", "001.jpg"),
+    );
   });
 
   it("pads index correctly for higher values", () => {
-    expect(buildFilePath("/output", 5, 3, "webp")).toBe(join("/output", "006.webp"));
+    expect(buildFilePath({ outputDir: "/output", index: 5, padLen: 3, ext: "webp" })).toBe(
+      join("/output", "006.webp"),
+    );
   });
 
   it("builds path with different pad length", () => {
-    expect(buildFilePath("/output", 99, 4, "png")).toBe(join("/output", "0100.png"));
+    expect(buildFilePath({ outputDir: "/output", index: 99, padLen: 4, ext: "png" })).toBe(
+      join("/output", "0100.png"),
+    );
   });
 
   it("uses different extension", () => {
-    expect(buildFilePath("/tmp/dir", 0, 3, "gif")).toBe(join("/tmp/dir", "001.gif"));
+    expect(buildFilePath({ outputDir: "/tmp/dir", index: 0, padLen: 3, ext: "gif" })).toBe(
+      join("/tmp/dir", "001.gif"),
+    );
   });
 
   it("handles large index", () => {
-    expect(buildFilePath("/a", 999, 4, "webp")).toBe(join("/a", "1000.webp"));
+    expect(buildFilePath({ outputDir: "/a", index: 999, padLen: 4, ext: "webp" })).toBe(
+      join("/a", "1000.webp"),
+    );
   });
 });
 
