@@ -8,8 +8,8 @@ interface Sample {
 export class SpeedTracker {
   private samples: Sample[] = [];
   private maxSamples = 20;
-
-  onRecord?: () => void;
+  private chapterDurations: number[] = [];
+  private maxChapterSamples = 50;
 
   record(bytes: number, durationMs: number): void {
     if (bytes <= 0 || durationMs <= 0) return;
@@ -17,7 +17,14 @@ export class SpeedTracker {
     if (this.samples.length > this.maxSamples) {
       this.samples.shift();
     }
-    this.onRecord?.();
+  }
+
+  recordChapter(durationMs: number): void {
+    if (durationMs <= 0) return;
+    this.chapterDurations.push(durationMs);
+    if (this.chapterDurations.length > this.maxChapterSamples) {
+      this.chapterDurations.shift();
+    }
   }
 
   get bytesPerSecond(): number {
@@ -29,6 +36,11 @@ export class SpeedTracker {
   get avgBytesPerImage(): number {
     if (this.samples.length === 0) return 0;
     return this.samples.reduce((s, x) => s + x.bytes, 0) / this.samples.length;
+  }
+
+  get avgChapterDurationMs(): number {
+    if (this.chapterDurations.length === 0) return 0;
+    return this.chapterDurations.reduce((s, x) => s + x, 0) / this.chapterDurations.length;
   }
 
   get sampleCount(): number {

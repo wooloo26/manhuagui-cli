@@ -176,8 +176,9 @@ async function downloadImages(opts: {
   urls: string[];
   padLen: number;
   tracker: SpeedTracker;
+  onProgress?: (downloaded: number, bytes: number) => void;
 }): Promise<void> {
-  const { context, chapterUrl, outputDir, urls, padLen, tracker } = opts;
+  const { context, chapterUrl, outputDir, urls, padLen, tracker, onProgress } = opts;
   const concurrency = Math.min(config.imageConcurrency, urls.length);
   const downloadPages = await Promise.all(
     Array.from({ length: concurrency }, () => context.newPage()),
@@ -200,15 +201,19 @@ async function downloadImages(opts: {
         ),
       );
 
+      let batchBytes = 0;
       for (const r of results) {
         if (r.ok) {
           tracker.record(r.bytes, r.durationMs);
+          batchBytes += r.bytes;
         }
       }
 
       if (results.some((r) => !r.ok)) return;
+      onProgress?.(Math.min(i + batch.length, urls.length), batchBytes);
 
-      if (config.downloadDelay > 0) {
+      const isLast = i + concurrency >= urls.length;
+      if (!isLast && config.downloadDelay > 0) {
         await sleep(Math.round(config.downloadDelay * (0.5 + Math.random())));
       }
     }
@@ -241,8 +246,9 @@ export async function extractChapterImages(opts: {
   browser: Browser;
   outputDir: string;
   tracker: SpeedTracker;
+  onProgress?: (downloaded: number, total: number, bytes: number) => void;
 }): Promise<string[]> {
-  const { chapterUrl, browser, outputDir, tracker } = opts;
+  const { chapterUrl, browser, outputDir, tracker, onProgress } = opts;
   ensureDir(outputDir);
 
   const context = await createBrowserContext(browser);
@@ -265,7 +271,17 @@ export async function extractChapterImages(opts: {
     if (urls.length === 0) return [];
 
     const padLen = computePadLength(urls.length);
-    await downloadImages({ context, chapterUrl, outputDir, urls, padLen, tracker });
+    const pageCount = urls.length;
+    onProgress?.(0, pageCount, 0);
+    await downloadImages({
+      context,
+      chapterUrl,
+      outputDir,
+      urls,
+      padLen,
+      tracker,
+      onProgress: (downloaded, bytes) => onProgress?.(downloaded, pageCount, bytes),
+    });
     return urls;
   } finally {
     await context.close();

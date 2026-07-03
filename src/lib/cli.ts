@@ -10,7 +10,7 @@ import { CancelledError } from "./errors.js";
 import { logger } from "./logger.js";
 import { chapterKey, filterPending, loadProgress } from "./progress.js";
 import { promptConfirm, promptResume, promptSections, promptUrl } from "./prompts.js";
-import { createDownloadTasks } from "./tasks.js";
+import { type PipelineResult, runPipeline } from "./tasks.js";
 import type { ComicInfo, Section } from "./types.js";
 import { atomicSaveJSON, slugify } from "./utils.js";
 
@@ -68,19 +68,15 @@ function displayDryRun(sections: Section[]): void {
   logger.info("Dry run complete. No files downloaded.");
 }
 
-function reportResults(
-  collected: Record<string, { urls: string[]; chapterUrl: string }>,
-  errors: string[],
-  totalChapters: number,
-): void {
-  if (Object.keys(collected).length > 0) {
-    logger.info(`Downloaded ${Object.keys(collected).length}/${totalChapters} chapters`);
+function reportResults(result: PipelineResult, attempted: number): void {
+  logger.info(`Done. ${result.ok} OK, ${result.failed} failed, ${attempted} total attempted.`);
+  if (Object.keys(result.collected).length > 0) {
+    logger.info(`Downloaded ${Object.keys(result.collected).length} chapters.`);
   }
-  if (errors.length > 0) {
-    logger.warn(`${errors.length} errors:`);
-    for (const e of errors) logger.warn(`  ! ${e}`);
+  if (result.errors.length > 0) {
+    logger.warn(`${result.errors.length} errors:`);
+    for (const e of result.errors) logger.warn(`  - ${e}`);
   }
-  logger.info(`Done. Processed ${totalChapters} chapters.`);
 }
 
 async function executeAndReport(opts: {
@@ -92,16 +88,17 @@ async function executeAndReport(opts: {
   totalChapters: number;
 }): Promise<void> {
   const { sections, comic, url, browser, resume, totalChapters } = opts;
-  const {
-    collected,
-    errors,
-    tasks: dl,
-  } = createDownloadTasks({ sections, comicTitle: comic.title, comicUrl: url, browser, resume });
-  await dl.run();
-  if (Object.keys(collected).length > 0) {
-    atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), collected);
+  const result = await runPipeline({
+    sections,
+    comicTitle: comic.title,
+    comicUrl: url,
+    browser,
+    resume,
+  });
+  if (Object.keys(result.collected).length > 0) {
+    atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), result.collected);
   }
-  reportResults(collected, errors, totalChapters);
+  reportResults(result, totalChapters);
 }
 
 // interactive mode only
