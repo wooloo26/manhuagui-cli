@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import type { Element as CheerioElement } from "domhandler";
 import type { Page } from "playwright";
 import { handleAdultCheck } from "./browser.js";
 import { config } from "./config.js";
@@ -11,7 +12,7 @@ function extractComicId(url: string): string {
 
 function parseSectionChapters(
   $: cheerio.CheerioAPI,
-  h4: cheerio.AnyNode,
+  h4: CheerioElement,
   baseUrl: string,
 ): Chapter[] {
   const chapters: Chapter[] = [];
