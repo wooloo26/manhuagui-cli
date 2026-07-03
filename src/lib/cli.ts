@@ -86,14 +86,16 @@ async function executeAndReport(opts: {
   browser: Browser;
   resume: boolean;
   totalChapters: number;
+  totalPagesExpected: number;
 }): Promise<void> {
-  const { sections, comic, url, browser, resume, totalChapters } = opts;
+  const { sections, comic, url, browser, resume, totalChapters, totalPagesExpected } = opts;
   const result = await runPipeline({
     sections,
     comicTitle: comic.title,
     comicUrl: url,
     browser,
     resume,
+    totalPagesExpected,
   });
   if (Object.keys(result.collected).length > 0) {
     atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), result.collected);
@@ -146,6 +148,11 @@ async function runDirect(opts: {
       throw new Error("No chapters found matching filters");
     }
 
+    const totalPagesExpected = sections.reduce(
+      (sum, s) => sum + s.chapters.reduce((cs, c) => cs + c.pageCount, 0),
+      0,
+    );
+
     if (resume) {
       const comicDir = join(config.outputBase, slugify(comic.title));
       const progress = loadProgress(comicDir);
@@ -165,7 +172,15 @@ async function runDirect(opts: {
       return;
     }
 
-    await executeAndReport({ sections, comic, url, browser, resume, totalChapters });
+    await executeAndReport({
+      sections,
+      comic,
+      url,
+      browser,
+      resume,
+      totalChapters,
+      totalPagesExpected,
+    });
   } finally {
     await browser.close();
   }
@@ -189,6 +204,11 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
     });
 
     let selected = await promptSections(comic.sections);
+
+    const totalPagesExpected = selected.reduce(
+      (sum, s) => sum + s.chapters.reduce((cs, c) => cs + c.pageCount, 0),
+      0,
+    );
 
     if (shouldResume) {
       const progress = loadProgress(comicDir);
@@ -222,6 +242,7 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
       browser,
       resume: shouldResume,
       totalChapters,
+      totalPagesExpected,
     });
   } finally {
     await browser.close();

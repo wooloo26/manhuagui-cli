@@ -4,7 +4,14 @@ import { extractChapterImages } from "./chapter.js";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import type { ProgressData } from "./progress.js";
-import { chapterKey, createProgress, loadProgress, markChapter, saveProgress } from "./progress.js";
+import {
+  chapterKey,
+  countCompletedPages,
+  createProgress,
+  loadProgress,
+  markChapter,
+  saveProgress,
+} from "./progress.js";
 import { SpeedTracker } from "./speed.js";
 import type { Chapter, Section } from "./types.js";
 import { DownloadUI } from "./ui.js";
@@ -55,10 +62,11 @@ export interface RunPipelineOptions {
   comicUrl: string;
   browser: Browser;
   resume: boolean;
+  totalPagesExpected: number;
 }
 
 export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineResult> {
-  const { sections, comicTitle, comicUrl, browser, resume } = opts;
+  const { sections, comicTitle, comicUrl, browser, resume, totalPagesExpected } = opts;
   const collected: Record<string, { urls: string[]; chapterUrl: string }> = {};
   const errors: string[] = [];
   const comicDir = join(config.outputBase, slugify(comicTitle));
@@ -70,7 +78,14 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
   const completedFromResume = countCompleted(progress);
   const pendingChapters = sections.reduce((sum, s) => sum + s.chapters.length, 0);
   const totalChapters = completedFromResume + pendingChapters;
-  const ui = new DownloadUI(comicTitle, totalChapters, completedFromResume);
+  const initialPagesDone = resume ? countCompletedPages(progress) : 0;
+  const ui = new DownloadUI(
+    comicTitle,
+    totalChapters,
+    completedFromResume,
+    totalPagesExpected,
+    initialPagesDone,
+  );
   const tracker = new SpeedTracker();
   let chapterNum = completedFromResume + 1;
   let ok = 0;
@@ -87,7 +102,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
         const key = chapterKey(section.name, ch.title);
         const chapterStart = Date.now();
 
-        ui.startChapter(chapterNum);
+        ui.startChapter(chapterNum, ch.pageCount);
 
         try {
           const r = await processChapter({

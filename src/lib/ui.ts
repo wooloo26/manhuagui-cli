@@ -55,25 +55,39 @@ export class DownloadUI {
   private numWidth: number;
   private pulseTimer?: ReturnType<typeof setInterval>;
   private lastOutput: string = "";
+  private totalPagesDone: number = 0;
+  private totalPagesExpected: number = 0;
+  private pagesDoneBeforeChapter: number = 0;
+  private currentChapterExpected: number = 0;
 
-  constructor(_comicTitle: string, totalChapters: number, initialCompleted: number) {
+  constructor(
+    _comicTitle: string,
+    totalChapters: number,
+    initialCompleted: number,
+    totalPagesExpected: number,
+    initialPagesDone: number,
+  ) {
     this.overallStart = Date.now();
     this.totalChapters = totalChapters;
     this.completedChapters = initialCompleted;
     this.numWidth = String(totalChapters).length;
+    this.totalPagesExpected = totalPagesExpected;
+    this.totalPagesDone = initialPagesDone;
   }
 
   startSection(name: string): void {
     this.sectionName = name;
   }
 
-  startChapter(num: number): void {
+  startChapter(num: number, pageCount: number): void {
     this.delayEnd = 0;
     this.chapterStart = Date.now();
     this.chapterBytes = 0;
     this.chapterNum = num;
     this.chapterPageDone = 0;
-    this.chapterPageTotal = 0;
+    this.chapterPageTotal = pageCount;
+    this.currentChapterExpected = pageCount;
+    this.pagesDoneBeforeChapter = this.totalPagesDone;
     this.render();
   }
 
@@ -92,6 +106,10 @@ export class DownloadUI {
   finishChapter(ok: boolean): void {
     if (!ok) {
       this.failedCount++;
+    } else {
+      const delta = this.chapterPageTotal - this.currentChapterExpected;
+      this.totalPagesExpected += delta;
+      this.totalPagesDone += this.chapterPageTotal;
     }
     this.completedChapters++;
     this.completedThisSession++;
@@ -150,7 +168,15 @@ export class DownloadUI {
     const chInfo = `${chalk.cyan(String(this.completedChapters))}/${chalk.cyan(String(this.totalChapters))} ch`;
     const elapsedStr = chalk.gray(`${elapsed} elapsed`);
     const etaStr = chalk.blue(overallEta !== "--" ? `~ ${overallEta}` : "--");
-    let overallLine = ` Overall  ${chInfo}${SEP}${elapsedStr}${SEP}${etaStr}`;
+    const overallParts: string[] = [chInfo];
+    if (this.totalPagesExpected > 0) {
+      const pgDone = this.pagesDoneBeforeChapter + this.chapterPageDone;
+      overallParts.push(
+        `${chalk.cyan(String(pgDone))}/${chalk.cyan(String(this.totalPagesExpected))} pg`,
+      );
+    }
+    overallParts.push(elapsedStr, etaStr);
+    let overallLine = ` Overall  ${overallParts.join(SEP)}`;
     if (this.failedCount > 0) {
       overallLine += `  ${chalk.red(`(${this.failedCount} failed)`)}`;
     }

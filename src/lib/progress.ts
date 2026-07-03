@@ -52,6 +52,16 @@ export function chapterKey(sectionName: string, chapterTitle: string): string {
   return `${sectionName}::${chapterTitle}`;
 }
 
+export function countCompletedPages(progress: ProgressData): number {
+  let count = 0;
+  for (const entry of Object.values(progress.chapters)) {
+    if (entry.status === "done" && entry.pageCount) {
+      count += entry.pageCount;
+    }
+  }
+  return count;
+}
+
 export function filterPending(progress: ProgressData | null, sections: Section[]): Section[] {
   if (!progress) return sections;
 
