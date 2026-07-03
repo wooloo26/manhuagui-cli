@@ -1,30 +1,74 @@
 # manhuagui-cli
 
-> CLI tool for downloading manhua from manhuagui.com
+<p align="center">
+  <a href="https://www.npmjs.com/package/manhuagui-cli"><img src="https://img.shields.io/npm/v/manhuagui-cli" alt="npm version"></a>
+  <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/node-%3E%3D22-brightgreen" alt="Node.js >= 22"></a>
+  <a href="./LICENSE"><img src="https://img.shields.io/npm/l/manhuagui-cli" alt="License: MIT"></a>
+</p>
+
+<p align="center">CLI tool for downloading manhua from manhuagui.com</p>
 
 [中文](README.md)
 
+---
+
+## Table of Contents
+
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Interactive Mode](#interactive-mode)
+  - [CLI Mode](#cli-mode)
+  - [Options](#options)
+- [Configuration](#configuration)
+  - [Priority](#priority)
+  - [Config Files](#config-files)
+  - [Environment Variables](#environment-variables)
+- [Output Structure](#output-structure)
+- [Development](#development)
+- [Changelog](#changelog)
+- [License](#license)
+- [Disclaimer](#disclaimer)
+
+## Quick Start
+
+```bash
+# Install globally
+npm install -g manhuagui-cli
+
+# Download a comic, follow the prompts
+manhuagui-cli
+
+# Or specify a URL directly
+manhuagui-cli <URL>
+
+# Filter by section name
+manhuagui-cli <URL> -s "Single Volumes"
+
+# Preview mode, list chapters without downloading
+manhuagui-cli <URL> --dry-run
+
+# Resume interrupted download
+manhuagui-cli <URL> --resume
+```
+
 ## Features
 
-- Interactive CLI with prompts, also supports direct CLI args
-- Auto-parses comic pages, lists all sections and chapters
-- Uses Playwright headless browser to bypass anti-bot measures
-- Random User-Agent and viewport rotation to simulate real users
-- CDN host rotation with automatic retry (up to 3 attempts) on image download failure
-- Concurrent image downloads within a chapter, sequential chapters with human-like delays
-- **Real-time progress bars**: speed, per-chapter progress, overall progress, and ETA estimation
-- **Preview mode** (`--dry-run`): list pending chapters without downloading
-- Resumable downloads: progress saved to `progress.json`, resume with `--resume` / `-r`
-- Clean output structure: `output/<comic-title>/<section>/<chapter>/001.webp`
-
-## Requirements
-
-- **Node.js** >= 22
-- **pnpm** (recommended) or npm
+- **Interactive mode**: Running without arguments launches an interactive prompt that guides you through URL input and section selection
+- **CLI mode**: Full CLI argument support for scripting and automation
+- **Anti-bot evasion**: Uses Playwright headless Chromium to mimic real browser requests and bypass anti-bot measures
+- **Identity rotation**: Randomly switches User-Agent and viewport size to simulate real user behavior
+- **CDN resilience**: Automatically rotates CDN hosts on image download failure with retry (default 3 attempts)
+- **Concurrency control**: Concurrent image downloads within a chapter, sequential chapters with randomized delays
+- **Real-time progress**: Terminal progress bars displaying speed, per-chapter progress, overall progress, and ETA
+- **Preview mode** (`--dry-run`): Lists pending chapters without downloading, useful for planning
+- **Resumable downloads**: Progress automatically saved to `progress.json`, resume with `--resume` / `-r`
+- **Clean directory structure**: `output/<comic-title>/<section>/<chapter>/001.webp`
 
 ## Installation
 
-### npm (Recommended)
+### npm Global Install (Recommended)
 
 ```bash
 npm install -g manhuagui-cli
@@ -46,53 +90,81 @@ pnpm link --global
 
 ### Interactive Mode
 
+Run without arguments and the tool will guide you through each step:
+
 ```bash
-pnpm dev
-# or build first:
-pnpm build
-node dist/index.js
+manhuagui-cli
 ```
 
-Follow prompts to enter comic URL, select sections, and confirm download.
+Interactive flow:
+
+1. Enter the comic URL
+2. The tool parses comic metadata (title, sections, chapter list)
+3. Select which sections to download (multi-select supported)
+4. Confirm and start downloading
+
+```text
+  manhuagui-cli v1.0.1
+
+Input comic URL:
+  https://www.manhuagui.com/comic/12345/
+
+Parsing comic page...
+  Some Comic Title
+
+Which sections to download?
+  [x] Single Volumes (12 chapters)
+  [ ] Serialized (200 chapters)
+  [x] Extras (3 chapters)
+  Confirm
+
+ Overall  3/4 ch · 6/8 pg · 45s elapsed · ~15s
+ [====================>                   ]  50%
+ Ch.3  2/2 pg · Single Volumes · 93.5 KB/s · ~15s
+```
 
 ### CLI Mode
 
 ```bash
-node dist/index.js <URL> [options]
-# or if linked globally:
-manhuagui-cli <URL> [options]
-
 # Show help
-node dist/index.js --help
+manhuagui-cli --help
 
-# Example: download specific section
-node dist/index.js https://www.manhuagui.com/comic/12345/ -s "单行本"
+# Download a specific section
+manhuagui-cli https://www.manhuagui.com/comic/12345/ -s "Single Volumes"
 
-# Example: download specific chapter
-node dist/index.js https://www.manhuagui.com/comic/12345/ -s "单话" -c "第01话"
+# Download a specific chapter
+manhuagui-cli https://www.manhuagui.com/comic/12345/ -s "Serialized" -c "Chapter 01"
 
-# Example: resume interrupted download
-node dist/index.js https://www.manhuagui.com/comic/12345/ --resume
+# Specify output directory
+manhuagui-cli https://www.manhuagui.com/comic/12345/ -o ./my-comics
+
+# Resume interrupted download
+manhuagui-cli https://www.manhuagui.com/comic/12345/ --resume
+
+# Preview mode
+manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 ```
 
 ### Options
 
-| Option               | Alias | Description                                                    |
-| -------------------- | ----- | -------------------------------------------------------------- |
-| `--section <name>`   | `-s`  | Download only the named section (default: all)                 |
-| `--chapter <name>`   | `-c`  | Download only the named chapter                                |
-| `--output <dir>`     | `-o`  | Download output directory                                      |
-| `--concurrency <n>`  | `-C`  | Concurrent image downloads per chapter                         |
-| `--retry <n>`        |       | Retry count per image download                                 |
-| `--log-level <level>`|       | Log level: `debug` \| `info` \| `warn` \| `error`                |
-| `--resume`           | `-r`  | Resume from previous interrupted download                      |
-| `--dry-run`          | `-d`  | Preview mode (list chapters without downloading)               |
-| `--help`             | `-h`  | Show help                                                      |
-| `--version`          | `-v`  | Show version                                                   |
+| Option                | Alias | Default  | Description                                                    |
+| --------------------- | ----- | -------- | -------------------------------------------------------------- |
+| `--section <name>`    | `-s`  | All      | Download only the named section                                |
+| `--chapter <name>`    | `-c`  | —        | Download only the named chapter                                |
+| `--output <dir>`      | `-o`  | `./output` | Download output directory                                    |
+| `--concurrency <n>`   | `-C`  | `2`      | Concurrent image downloads per chapter                         |
+| `--retry <n>`         |       | `3`      | Retry count per image download                                 |
+| `--log-level <level>` |       | `info`   | Log level: `debug` / `info` / `warn` / `error`                |
+| `--resume`            | `-r`  | —        | Resume from previous interrupted download                      |
+| `--dry-run`           | `-d`  | —        | Preview mode (list chapters without downloading)               |
+| `--help`              | `-h`  | —        | Show help                                                      |
+| `--version`           | `-v`  | —        | Show version                                                   |
 
 ## Configuration
 
-All settings follow this priority order (higher overrides lower):
+In addition to CLI arguments, behavior can be customized via config files and environment variables.
+
+### Priority
 
 ```
 CLI args > config files > environment variables > defaults
@@ -100,10 +172,13 @@ CLI args > config files > environment variables > defaults
 
 ### Config Files
 
-Two JSON config file locations are supported, project-level overrides global:
+Two JSON config file locations are supported. Project-level overrides global-level fields.
 
-- **Project-level**: `<cwd>/.manhuaguirc.json`
-- **Global**: `~/.config/manhuagui-cli/config.json` (Windows: `%USERPROFILE%\.config\manhuagui-cli\config.json`)
+| Location     | Path                                                                         |
+| ------------ | ---------------------------------------------------------------------------- |
+| Project      | `<cwd>/.manhuaguirc.json`                                                    |
+| Global       | `~/.config/manhuagui-cli/config.json`                                        |
+| (Windows)    | `%USERPROFILE%\.config\manhuagui-cli\config.json`                            |
 
 ```json
 {
@@ -120,22 +195,22 @@ All fields are optional; defaults are used for any omitted field.
 
 Copy `.env.example` to `.env` and modify as needed. System environment variables are also supported.
 
-| Variable              | Default    | Description                                         |
-| --------------------- | ---------- | --------------------------------------------------- |
-| `OUTPUT_BASE`         | `./output` | Download output directory                           |
-| `IMAGE_CONCURRENCY`   | `2`        | Concurrent image downloads per chapter              |
-| `DOWNLOAD_DELAY`      | `3000`     | Delay between image batches (ms, 0 to disable)     |
-| `CHAPTER_DELAY_MIN`   | `3000`     | Min delay between chapters (ms)                     |
-| `CHAPTER_DELAY_MAX`   | `6000`    | Max delay between chapters (ms)                     |
-| `RETRY_COUNT`         | `3`        | Retry count per image download                      |
-| `RETRY_BACKOFF_BASE`  | `1000`     | Retry backoff base (ms), wait `N × base` on Nth retry |
-| `IMAGE_LOAD_DELAY`    | `200`      | Wait after page turn for image to load (ms)         |
-| `LOG_LEVEL`           | `info`     | Log level: `debug` \| `info` \| `warn` \| `error`     |
-| `USER_AGENTS`         | —          | Custom User-Agent pool, one per line                |
+| Variable              | Default    | Description                                             |
+| --------------------- | ---------- | ------------------------------------------------------- |
+| `OUTPUT_BASE`         | `./output` | Download output directory                               |
+| `IMAGE_CONCURRENCY`   | `2`        | Concurrent image downloads per chapter                  |
+| `DOWNLOAD_DELAY`      | `3000`     | Delay between image batches (ms, 0 to disable)         |
+| `CHAPTER_DELAY_MIN`   | `3000`     | Min delay between chapters (ms)                         |
+| `CHAPTER_DELAY_MAX`   | `6000`     | Max delay between chapters (ms)                         |
+| `RETRY_COUNT`         | `3`        | Retry count per image download                          |
+| `RETRY_BACKOFF_BASE`  | `1000`     | Retry backoff base (ms), wait `N * base` on Nth retry  |
+| `IMAGE_LOAD_DELAY`    | `200`      | Wait after page turn for image to load (ms)             |
+| `LOG_LEVEL`           | `info`     | Log level: `debug` / `info` / `warn` / `error`          |
+| `USER_AGENTS`         | —          | Custom User-Agent pool, one per line                    |
 
 ## Output Structure
 
-```
+```text
 output/
 └── <comic-title>/
     ├── urls.json          # Chapter image URL manifest
@@ -150,18 +225,22 @@ output/
 ## Development
 
 ```bash
-pnpm install           # Install dependencies
-pnpm dev               # Run in dev mode (TypeScript directly)
-pnpm build             # Compile TypeScript
-pnpm typecheck         # Type check
-pnpm test              # Run tests
-pnpm check             # Lint and format check
-pnpm format            # Auto-fix formatting
+pnpm install      # Install dependencies
+pnpm dev          # Run in dev mode (TypeScript directly)
+pnpm build        # Compile TypeScript
+pnpm typecheck    # Type check
+pnpm test         # Run tests
+pnpm check        # Lint and format check (Biome)
+pnpm format       # Auto-fix formatting
 ```
+
+## Changelog
+
+See [CHANGELOG.md](./CHANGELOG.md).
 
 ## License
 
-[MIT](LICENSE)
+[MIT](./LICENSE)
 
 ## Disclaimer
 
