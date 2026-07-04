@@ -11,7 +11,7 @@
 </p>
 
 <p align="center">
-  <a href="./README.en.md">English</a>
+  <a href="./README_EN.md">English</a>
 </p>
 
 <p align="center">
@@ -26,19 +26,7 @@ npm install -g manhuagui-cli
 manhuagui-cli
 ```
 
-## 功能特性
-
-- 交互式界面：无参数运行时进入引导模式，输入 URL、选择章节组和章节
-- 命令行模式：支持完整 CLI 参数，适合脚本化和自动化场景
-- 反爬虫绕过：基于 Playwright 无头 Chromium 加载页面，绕过 JS 混淆和反爬检测
-- 身份伪装：随机切换 User-Agent 与视口大小，模拟真实用户行为
-- CDN 容错：图片下载自动轮换 CDN 节点，失败自动重试（默认 3 次）
-- 并发控制：章节内图片并发下载，章节间顺序处理并加入随机延迟
-- 实时进度：终端进度条显示下载速度、章节进度、整体进度及预计剩余时间
-- 预览模式 (`--dry-run`)：列出待下载章节而不实际下载
-- 断点续传：进度自动保存至 `progress.json`，中断后通过 `--resume` / `-r` 继续
-- 覆盖模式 (`--overwrite`)：续传时仅重新下载未完成的章节，已完成的章节始终保留
-- 清晰目录：`output/<漫画名>/<章节组>/<章节>/001.webp`
+不带参数运行，工具会逐步引导你完成操作。流程：输入漫画 URL -> 解析漫画信息 -> 选择章节组（多选） -> 开始下载。
 
 ## 安装
 
@@ -48,7 +36,7 @@ manhuagui-cli
 npm install -g manhuagui-cli
 ```
 
-安装后即可直接使用 `manhuagui-cli` 命令。首次运行时 Playwright 会自动下载 Chromium 浏览器。
+安装后即可直接使用 `manhuagui-cli` 命令。
 
 ### 从源码
 
@@ -57,22 +45,12 @@ git clone https://github.com/wooloo26/manhuagui-cli.git
 cd manhuagui-cli
 pnpm install
 pnpm build
-pnpm link --global
+pnpm start
 ```
 
 ## 使用方法
 
-### 交互模式
-
-不带参数运行，工具会逐步引导你完成操作：
-
-```bash
-manhuagui-cli
-```
-
-流程：输入漫画 URL -> 解析漫画信息 -> 选择章节组（多选） -> 开始下载。
-
-### 命令行模式
+### 命令行
 
 ```bash
 # 查看帮助

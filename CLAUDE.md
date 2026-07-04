@@ -78,7 +78,7 @@ src/
 ├── cli.ts            # Command orchestration (interactive/direct mode)
 ├── comic.ts          # Comic page parsing & browser context (anti-detection)
 ├── pipeline.ts       # Download pipeline (section/chapter iteration)
-├── download.ts       # CDN host rotation download & image extraction
+├── download.ts       # Image download & extraction
 ├── config.ts         # Environment variables & defaults
 ├── types.ts          # Type definitions + zod schemas
 ├── utils.ts          # Utility functions
