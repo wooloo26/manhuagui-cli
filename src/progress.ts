@@ -9,7 +9,6 @@ import { atomicSaveJSON, slugify } from "./utils.js";
 const ChapterProgressSchema = z.object({
   status: z.enum(["done", "failed", "pending"]),
   pageCount: z.number().int().nonnegative().optional(),
-  urlsHash: z.string().optional(),
   error: z.string().optional(),
 });
 
@@ -48,15 +47,10 @@ export function updateChapterProgress(opts: {
   progress: ProgressData;
   key: string;
   status: "done" | "failed" | "pending";
-  extra?: { pageCount?: number; urlsHash?: string; error?: string };
+  extra?: { pageCount?: number; error?: string };
 }): ProgressData {
-  const prevUrlsHash = opts.progress.chapters[opts.key]?.urlsHash;
   const updated = produce(opts.progress, (draft) => {
-    const entry: ChapterProgress = { status: opts.status, ...opts.extra };
-    if (opts.status !== "done" && prevUrlsHash && !entry.urlsHash) {
-      entry.urlsHash = prevUrlsHash;
-    }
-    draft.chapters[opts.key] = entry;
+    draft.chapters[opts.key] = { status: opts.status, ...opts.extra };
   });
   saveProgress(opts.comicDir, updated);
   return updated;

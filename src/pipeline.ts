@@ -131,8 +131,6 @@ export async function runPipeline(opts: PipelineOptions): Promise<PipelineResult
         const chapterNum = chapterIndexMap.get(key) ?? completedFromResume + 1;
         ui.startChapter(chapterNum, ch.pageCount);
 
-        const storedUrlsHash = progress.chapters[key]?.urlsHash;
-
         try {
           const r = await processChapter({
             chapter: ch,
@@ -142,16 +140,6 @@ export async function runPipeline(opts: PipelineOptions): Promise<PipelineResult
             tracker,
             cfg,
             overwrite,
-            storedUrlsHash,
-            onHash: (h) => {
-              progress = updateChapterProgress({
-                comicDir,
-                progress,
-                key,
-                status: "pending",
-                extra: { urlsHash: h },
-              });
-            },
             onProgress: (downloaded, total, bytes) => {
               ui.pageProgress(downloaded, total, bytes);
             },

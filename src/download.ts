@@ -7,36 +7,7 @@ import { type Config, config as defaultConfig } from "./config.js";
 import { logger } from "./logger.js";
 import type { Chapter } from "./types.js";
 import type { SpeedTracker } from "./ui.js";
-import { ensureDir, hashUrls, sleep, slugify } from "./utils.js";
-
-// ===== CDN host rotation =====
-
-const DEFAULT_CDN_HOSTS = Object.freeze(["eu", "eu1", "eu2", "us", "us1", "us2", "us3"]);
-
-const CDN_HOSTS: readonly string[] = (() => {
-  const env = process.env.CDN_HOSTS;
-  if (env) {
-    const hosts = env
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (hosts.length > 0) return Object.freeze(hosts);
-  }
-  return DEFAULT_CDN_HOSTS;
-})();
-
-export function rotateHost(url: string): string {
-  const parsed = new URL(url);
-  const parts = parsed.hostname.split(".");
-  if (parts.length >= 3) {
-    const idx = CDN_HOSTS.indexOf(parts[0]);
-    if (idx !== -1) {
-      parts[0] = CDN_HOSTS[(idx + 1) % CDN_HOSTS.length];
-      parsed.hostname = parts.join(".");
-    }
-  }
-  return parsed.href;
-}
+import { ensureDir, sleep, slugify } from "./utils.js";
 
 // ===== File path helpers =====
 
@@ -111,13 +82,11 @@ async function downloadImage(opts: {
     ext: extractExtension(url),
   });
 
-  let downloadUrl = url;
-
   try {
     const result = await retry(
       async () => {
         const started = Date.now();
-        const response = await downloadPage.goto(downloadUrl, {
+        const response = await downloadPage.goto(url, {
           referer: chapterUrl,
           waitUntil: "load",
           timeout: cfg.pageLoadTimeout,
@@ -130,10 +99,7 @@ async function downloadImage(opts: {
       },
       {
         retries: cfg.retryCount - 1,
-        delay: (attempt) => {
-          downloadUrl = rotateHost(downloadUrl);
-          return cfg.retryBackoffBase * (attempt + 1);
-        },
+        delay: (attempt) => cfg.retryBackoffBase * (attempt + 1),
       },
     );
     return result;
@@ -380,12 +346,12 @@ export async function collectChapterUrls(opts: {
   chapterUrl: string;
   cfg?: Config;
   onProgress?: (downloaded: number, total: number, bytes: number) => void;
-}): Promise<{ urls: string[]; urlsHash: string } | null> {
+}): Promise<{ urls: string[] } | null> {
   const { page, chapterUrl, cfg = defaultConfig, onProgress } = opts;
   await navigateToChapterPage(page, chapterUrl, cfg);
   const urls = await resolveChapterUrls(page, cfg, onProgress);
   if (!urls || urls.length === 0) return null;
-  return { urls, urlsHash: hashUrls(urls) };
+  return { urls };
 }
 
 // ===== Chapter processing =====
@@ -398,22 +364,9 @@ export async function processChapter(opts: {
   tracker: SpeedTracker;
   cfg: Config;
   overwrite: boolean;
-  storedUrlsHash?: string;
-  onHash?: (hash: string) => void;
   onProgress?: (downloaded: number, total: number, bytes: number) => void;
-}): Promise<{ title: string; urls: string[]; urlsHash: string; chapterUrl: string } | null> {
-  const {
-    chapter,
-    sectionName,
-    comicTitle,
-    browser,
-    tracker,
-    cfg,
-    overwrite,
-    storedUrlsHash,
-    onHash,
-    onProgress,
-  } = opts;
+}): Promise<{ title: string; urls: string[]; chapterUrl: string } | null> {
+  const { chapter, sectionName, comicTitle, browser, tracker, cfg, overwrite, onProgress } = opts;
   const dirName = slugify(chapter.title);
   const outputDir = join(cfg.outputBase, slugify(comicTitle), slugify(sectionName), dirName);
   ensureDir(outputDir);
@@ -428,15 +381,10 @@ export async function processChapter(opts: {
       onProgress,
     });
     if (!urlsResult) return null;
-    const { urls, urlsHash } = urlsResult;
-    onHash?.(urlsHash);
+    const { urls } = urlsResult;
 
-    if (overwrite || (storedUrlsHash !== undefined && storedUrlsHash !== urlsHash)) {
-      logger.debug(
-        storedUrlsHash !== undefined && storedUrlsHash !== urlsHash
-          ? "CDN URLs changed, clearing chapter directory"
-          : "Overwrite enabled, clearing unfinished chapter directory",
-      );
+    if (overwrite) {
+      logger.debug("Overwrite enabled, clearing unfinished chapter directory");
       clearChapterDir(outputDir);
     }
 
@@ -456,7 +404,6 @@ export async function processChapter(opts: {
     return {
       title: chapter.title,
       urls,
-      urlsHash,
       chapterUrl: chapter.url,
     };
   } finally {

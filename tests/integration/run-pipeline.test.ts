@@ -49,8 +49,7 @@ function fakeResult(chapterUrl: string, count = 5) {
     { length: count },
     (_, i) => `https://example.com/${String(i + 1).padStart(3, "0")}.webp`,
   );
-  const urlsHash = `hash-${chapterUrl}`;
-  return { urls, urlsHash };
+  return { urls };
 }
 
 function makeSections(...counts: number[]): Section[] {
@@ -95,9 +94,8 @@ describe("runPipeline integration", () => {
     });
 
     mockProcessChapter.mockImplementation(async (opts) => {
-      const { chapter, onHash, onProgress } = opts;
+      const { chapter, onProgress } = opts;
       const result = fakeResult(chapter.url);
-      onHash?.(result.urlsHash);
       if (onProgress) {
         onProgress(0, result.urls.length, 0);
         onProgress(result.urls.length, result.urls.length, result.urls.length * 1000);
@@ -105,7 +103,6 @@ describe("runPipeline integration", () => {
       return {
         title: chapter.title,
         urls: result.urls,
-        urlsHash: result.urlsHash,
         chapterUrl: chapter.url,
       };
     });
@@ -150,12 +147,10 @@ describe("runPipeline integration", () => {
       chapters: {
         [chapterKey("Section 1", "Chapter 1")]: {
           status: "done",
-          urlsHash: "old-hash-1",
           pageCount: 5,
         },
         [chapterKey("Section 2", "Chapter 3")]: {
           status: "done",
-          urlsHash: "old-hash-3",
           pageCount: 5,
         },
       },
@@ -173,7 +168,7 @@ describe("runPipeline integration", () => {
       totalPagesExpected: 20,
     });
 
-    // All chapters are still processed, but storedUrlsHash is passed for known chapters
+    // All chapters are processed
     expect(mockProcessChapter).toHaveBeenCalledTimes(4);
     expect(result.succeeded).toBe(4);
 

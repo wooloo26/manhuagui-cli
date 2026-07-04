@@ -116,8 +116,6 @@ describe("processChapter integration", () => {
 
     expect(result).not.toBeNull();
     expect(result!.urls).toHaveLength(10);
-    expect(result!.urlsHash).toBeTruthy();
-    expect(result!.urlsHash).toHaveLength(16);
 
     const outDir = outputDir("single-chapter");
     const files = readdirSync(outDir);
@@ -151,7 +149,6 @@ describe("processChapter integration", () => {
 
     expect(result).not.toBeNull();
     expect(result!.urls).toHaveLength(10);
-    expect(result!.urlsHash).toHaveLength(16);
 
     const outDir = outputDir("multi-chapter");
     const files = readdirSync(outDir);
@@ -209,7 +206,7 @@ describe("processChapter integration", () => {
     expect(result).toBeNull();
   });
 
-  it("skips redownload when storedUrlsHash matches", async () => {
+  it("skips redownload when files already exist without overwrite", async () => {
     const fixtureUrl = "skip.html";
     setupMock(defaultFixture(fixtureUrl, chapterSingleHtml));
 
@@ -230,7 +227,6 @@ describe("processChapter integration", () => {
     });
 
     expect(result1).not.toBeNull();
-    const firstHash = result1!.urlsHash;
 
     const outDir = outputDir("skip-chapter");
 
@@ -239,7 +235,7 @@ describe("processChapter integration", () => {
       readdirSync(outDir).map((f) => [f, statSync(join(outDir, f)).mtimeMs]),
     );
 
-    // Second run — hash matches, should keep existing files
+    // Second run — files already exist, should be kept
     const result2 = await processChapter({
       chapter,
       sectionName,
@@ -248,11 +244,9 @@ describe("processChapter integration", () => {
       tracker,
       cfg: config,
       overwrite: false,
-      storedUrlsHash: firstHash,
     });
 
     expect(result2).not.toBeNull();
-    expect(result2!.urlsHash).toBe(firstHash);
 
     // Files should still exist with same modification times
     const secondMtimes = new Map(
@@ -263,23 +257,14 @@ describe("processChapter integration", () => {
     }
   });
 
-  it("clears directory and redownloads when CDN hash changed", async () => {
-    const fixtureUrl = "cdn-change.html";
-    setupMock([
-      { urlPattern: fixtureUrl, html: chapterSingleHtml },
-      {
-        urlPattern: "different.html",
-        html: chapterSingleHtml.replace(
-          /img\/test\/0/g,
-          "img/test/new-0",
-        ),
-      },
-    ]);
+  it("clears directory and redownloads when overwrite is enabled", async () => {
+    const fixtureUrl = "overwrite.html";
+    setupMock(defaultFixture(fixtureUrl, chapterSingleHtml));
 
     const chapterUrl = `https://www.manhuagui.com/comic/7580/${fixtureUrl}`;
     const tracker = new SpeedTracker();
 
-    const chapter = { title: "cdn-chapter", url: chapterUrl, pageCount: 10 };
+    const chapter = { title: "overwrite-chapter", url: chapterUrl, pageCount: 10 };
 
     // First run
     const result1 = await processChapter({
@@ -292,32 +277,40 @@ describe("processChapter integration", () => {
       overwrite: false,
     });
     expect(result1).not.toBeNull();
-    const outDir = outputDir("cdn-chapter");
+    const outDir = outputDir("overwrite-chapter");
     const firstFiles = readdirSync(outDir);
     expect(firstFiles.length).toBeGreaterThan(0);
+    const firstMtimes = new Map(
+      firstFiles.map((f) => [f, statSync(join(outDir, f)).mtimeMs]),
+    );
 
-    // Second run — different fixture produces different hash
-    const chapter2 = { title: "cdn-chapter", url: `https://www.manhuagui.com/comic/7580/different.html`, pageCount: 10 };
+    // Second run with overwrite — should clear and redownload
     const result2 = await processChapter({
-      chapter: chapter2,
+      chapter,
       sectionName,
       comicTitle,
       browser,
       tracker,
       cfg: config,
-      overwrite: false,
-      storedUrlsHash: result1!.urlsHash,
+      overwrite: true,
     });
 
     expect(result2).not.toBeNull();
-    expect(result2!.urlsHash).not.toBe(result1!.urlsHash);
 
     // Files should have been cleared and recreated
     const secondFiles = readdirSync(outDir);
     expect(secondFiles.length).toBeGreaterThan(0);
+    // Verify at least one file has a different mtime
+    const secondMtimes = new Map(
+      secondFiles.map((f) => [f, statSync(join(outDir, f)).mtimeMs]),
+    );
+    const changed = Array.from(firstMtimes.keys()).some(
+      (f) => secondMtimes.get(f) !== firstMtimes.get(f),
+    );
+    expect(changed).toBe(true);
   });
 
-  it("retries failed image downloads with CDN rotation", async () => {
+  it("retries failed image downloads", async () => {
     const failFixture = chapterSingleHtml.replace(
       /eu\.manhuagui\.com\/img\/test\//g,
       "eu.manhuagui.com/img/fail-once/",
