@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.5](https://github.com/wooloo26/manhuagui-cli/compare/v1.0.4...v1.0.5) (2026-07-04)
+
+### Bug Fixes
+
+* **download:** catch [#next](https://github.com/wooloo26/manhuagui-cli/issues/next) selector timeout when button not present ([eed6e76](https://github.com/wooloo26/manhuagui-cli/commit/eed6e766fe50966edf129b06d85b2fb4fb638292))
+
 ## [1.0.4](https://github.com/wooloo26/manhuagui-cli/compare/v1.0.3...v1.0.4) (2026-07-04)
 
 ### Features
