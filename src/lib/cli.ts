@@ -12,7 +12,7 @@ import { chapterKey, filterPending, loadProgress } from "./progress.js";
 import { promptConfirm, promptResume, promptSections, promptUrl } from "./prompts.js";
 import { type PipelineResult, runPipeline } from "./tasks.js";
 import type { ComicInfo, Section } from "./types.js";
-import { atomicSaveJSON, slugify } from "./utils.js";
+import { slugify } from "./utils.js";
 
 async function launchBrowser(): Promise<Browser> {
   return chromium.launch({ headless: true });
@@ -97,9 +97,6 @@ async function executeAndReport(opts: {
     resume,
     totalPagesExpected,
   });
-  if (Object.keys(result.collected).length > 0) {
-    atomicSaveJSON(join(config.outputBase, slugify(comic.title), "urls.json"), result.collected);
-  }
   reportResults(result, totalChapters);
 }
 
