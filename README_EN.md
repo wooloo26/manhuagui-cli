@@ -20,6 +20,8 @@
 
 ## Quick Start
 
+> **Note**: The default download speed is intentionally conservative. Increasing concurrency or reducing delays may result in your IP being banned for several hours. Adjust with caution.
+
 ```bash
 npm install -g manhuagui-cli
 
