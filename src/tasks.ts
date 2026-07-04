@@ -1,9 +1,9 @@
 import { join } from "node:path";
 import { sum } from "es-toolkit";
 import type { Browser } from "playwright";
-import { extractChapterImages } from "./chapter.js";
 import type { Config } from "./config.js";
 import { logger } from "./logger.js";
+import { processChapter } from "./process-chapter.js";
 import type { ProgressData } from "./progress.js";
 import {
   chapterKey,
@@ -14,14 +14,14 @@ import {
   updateChapterProgress,
 } from "./progress.js";
 import { SpeedTracker } from "./speed.js";
-import type { Chapter, Section } from "./types.js";
+import type { Section } from "./types.js";
 import { DownloadUI } from "./ui.js";
 import { randomInt, sleep, slugify } from "./utils.js";
 
 export interface PipelineResult {
-  collected: Record<string, { urls: string[]; chapterUrl: string }>;
+  downloaded: Record<string, { urls: string[]; chapterUrl: string }>;
   errors: string[];
-  ok: number;
+  succeeded: number;
   failed: number;
 }
 
@@ -34,25 +34,25 @@ function recordChapterOutcome(opts: {
   comicDir: string;
   key: string;
   success: boolean;
-  collected?: { title: string; urls: string[]; chapterUrl: string };
+  downloaded?: { title: string; urls: string[]; chapterUrl: string };
   errorMsg?: string;
   tracker: SpeedTracker;
   chapterElapsed: number;
   ui: DownloadUI;
-}): { progress: ProgressData; ok: number; failed: number } {
-  const { progress, comicDir, key, success, collected, errorMsg, tracker, chapterElapsed } = opts;
+}): { progress: ProgressData; succeeded: number; failed: number } {
+  const { progress, comicDir, key, success, downloaded, errorMsg, tracker, chapterElapsed } = opts;
   tracker.recordChapter(chapterElapsed);
 
-  if (success && collected) {
+  if (success && downloaded) {
     const updated = updateChapterProgress({
       comicDir,
       progress,
       key,
       status: "done",
-      extra: { pageCount: collected.urls.length },
+      extra: { pageCount: downloaded.urls.length },
     });
     opts.ui.finishChapter(true);
-    return { progress: updated, ok: 1, failed: 0 };
+    return { progress: updated, succeeded: 1, failed: 0 };
   }
 
   const updated = updateChapterProgress({
@@ -63,58 +63,10 @@ function recordChapterOutcome(opts: {
     extra: { error: errorMsg ?? "No images found" },
   });
   opts.ui.finishChapter(false);
-  return { progress: updated, ok: 0, failed: 1 };
+  return { progress: updated, succeeded: 0, failed: 1 };
 }
 
-async function processChapter(opts: {
-  chapter: Chapter;
-  sectionName: string;
-  comicTitle: string;
-  browser: Browser;
-  tracker: SpeedTracker;
-  cfg: Config;
-  overwrite: boolean;
-  storedUrlsHash?: string;
-  onHash?: (hash: string) => void;
-  onProgress: (downloaded: number, total: number, bytes: number) => void;
-}): Promise<{ title: string; urls: string[]; urlsHash: string; chapterUrl: string } | null> {
-  const {
-    chapter,
-    sectionName,
-    comicTitle,
-    browser,
-    tracker,
-    cfg,
-    overwrite,
-    storedUrlsHash,
-    onHash,
-    onProgress,
-  } = opts;
-  const dirName = slugify(chapter.title);
-  const outputDir = join(cfg.outputBase, slugify(comicTitle), slugify(sectionName), dirName);
-
-  const result = await extractChapterImages({
-    chapterUrl: chapter.url,
-    browser,
-    outputDir,
-    tracker,
-    cfg,
-    storedUrlsHash,
-    overwrite,
-    onHash,
-    onProgress,
-  });
-  if (!result) return null;
-
-  return {
-    title: chapter.title,
-    urls: result.urls,
-    urlsHash: result.urlsHash,
-    chapterUrl: chapter.url,
-  };
-}
-
-export interface RunPipelineOptions {
+export interface PipelineOptions {
   sections: Section[];
   chapterIndexMap: Map<string, number>;
   comicTitle: string;
@@ -126,7 +78,7 @@ export interface RunPipelineOptions {
   totalPagesExpected: number;
 }
 
-export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineResult> {
+export async function runPipeline(opts: PipelineOptions): Promise<PipelineResult> {
   const {
     sections,
     chapterIndexMap,
@@ -138,7 +90,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
     overwrite,
     totalPagesExpected,
   } = opts;
-  const collected: Record<string, { urls: string[]; chapterUrl: string }> = {};
+  const downloaded: Record<string, { urls: string[]; chapterUrl: string }> = {};
   const errors: string[] = [];
   const comicDir = join(cfg.outputBase, slugify(comicTitle));
   let progress = resume
@@ -155,10 +107,15 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
     completedFromResume,
     totalPagesExpected,
     initialPagesDone,
-    { chapterDelayMin: cfg.chapterDelayMin, chapterDelayMax: cfg.chapterDelayMax },
+    {
+      chapterDelayMin: cfg.chapterDelayMin,
+      chapterDelayMax: cfg.chapterDelayMax,
+      imageConcurrency: cfg.imageConcurrency,
+      downloadDelay: cfg.downloadDelay,
+    },
   );
   const tracker = new SpeedTracker();
-  let ok = 0;
+  let succeeded = 0;
   let failed = 0;
 
   ui.startPulse();
@@ -206,7 +163,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
             comicDir,
             key,
             success: r !== null,
-            collected: r ?? undefined,
+            downloaded: r ?? undefined,
             errorMsg: r ? undefined : "No images found",
             tracker,
             chapterElapsed: Date.now() - chapterStart,
@@ -215,9 +172,9 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
           progress = outcome.progress;
 
           if (r) {
-            collected[r.title] = { urls: r.urls, chapterUrl: r.chapterUrl };
+            downloaded[r.title] = { urls: r.urls, chapterUrl: r.chapterUrl };
           }
-          ok += outcome.ok;
+          succeeded += outcome.succeeded;
           failed += outcome.failed;
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
@@ -248,5 +205,5 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
     ui.stop();
   }
 
-  return { collected, errors, ok, failed };
+  return { downloaded, errors, succeeded, failed };
 }

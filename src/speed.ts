@@ -10,58 +10,20 @@ export interface OverallEtaInput {
   chapterPageTotal: number;
 }
 
-export interface EtaDelayParams {
-  chapterDelayMin: number;
-  chapterDelayMax: number;
-}
-
-export function estimateOverallEta(input: OverallEtaInput, delays: EtaDelayParams): number {
-  const {
-    overallStart,
-    chapterStart,
-    totalChapters,
-    completedChapters,
-    completedThisSession,
-    chapterPageDone,
-    chapterPageTotal,
-  } = input;
-
-  const elapsed = (Date.now() - overallStart) / 1000;
-  const remaining = totalChapters - completedChapters;
-  if (remaining <= 0) return 0;
-
-  if (completedThisSession >= 1) {
-    return remaining * (elapsed / completedThisSession);
-  }
-
-  if (chapterPageTotal <= 0 || chapterPageDone <= 0) {
-    return 0;
-  }
-
-  const chapterElapsed = (Date.now() - chapterStart) / 1000;
-  const pageRate = chapterPageDone / chapterElapsed;
-  const chapterRemainingSec = (chapterPageTotal - chapterPageDone) / Math.max(pageRate, 0.001);
-
-  const avgDelay = (delays.chapterDelayMin + delays.chapterDelayMax) / 2 / 1000;
-  const estimatedChapterSec = chapterElapsed + chapterRemainingSec + avgDelay;
-
-  return chapterRemainingSec + (remaining - 1) * Math.max(estimatedChapterSec, 0);
-}
-
-interface Sample {
-  bytes: number;
-  durationMs: number;
-}
-
-export interface RemainingDelayParams {
+export interface DelayParams {
   imageConcurrency: number;
   downloadDelay: number;
   chapterDelayMin: number;
   chapterDelayMax: number;
 }
 
+interface SpeedSample {
+  bytes: number;
+  durationMs: number;
+}
+
 export class SpeedTracker {
-  private samples: Sample[] = [];
+  private samples: SpeedSample[] = [];
   private maxSamples = 20;
   private chapterDurations: number[] = [];
   private maxChapterSamples = 50;
@@ -105,7 +67,7 @@ export class SpeedTracker {
   estimateRemainingMs(
     remainingImages: number,
     remainingChapters: number,
-    delays: RemainingDelayParams,
+    delays: DelayParams,
   ): number {
     const speed = this.bytesPerSecond;
     const avgBytes = this.avgBytesPerImage;
@@ -121,6 +83,39 @@ export class SpeedTracker {
     const chapterDelay = Math.max(0, remainingChapters - 1) * avgChapterDelay;
 
     return Math.round(downloadTime + batchDelay + chapterDelay);
+  }
+
+  static estimateOverallEta(input: OverallEtaInput, delays: DelayParams): number {
+    const {
+      overallStart,
+      chapterStart,
+      totalChapters,
+      completedChapters,
+      completedThisSession,
+      chapterPageDone,
+      chapterPageTotal,
+    } = input;
+
+    const elapsed = (Date.now() - overallStart) / 1000;
+    const remaining = totalChapters - completedChapters;
+    if (remaining <= 0) return 0;
+
+    if (completedThisSession >= 1) {
+      return remaining * (elapsed / completedThisSession);
+    }
+
+    if (chapterPageTotal <= 0 || chapterPageDone <= 0) {
+      return 0;
+    }
+
+    const chapterElapsed = (Date.now() - chapterStart) / 1000;
+    const pageRate = chapterPageDone / chapterElapsed;
+    const chapterRemainingSec = (chapterPageTotal - chapterPageDone) / Math.max(pageRate, 0.001);
+
+    const avgDelay = (delays.chapterDelayMin + delays.chapterDelayMax) / 2 / 1000;
+    const estimatedChapterSec = chapterElapsed + chapterRemainingSec + avgDelay;
+
+    return chapterRemainingSec + (remaining - 1) * Math.max(estimatedChapterSec, 0);
   }
 
   static formatMs(ms: number): string {

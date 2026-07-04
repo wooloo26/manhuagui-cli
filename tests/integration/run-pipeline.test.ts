@@ -8,16 +8,16 @@ import type { Section } from "../../src/types.js";
 import { slugify } from "../../src/utils.js";
 import { cleanupTempDir, createTempDir } from "../helpers/temp-dir.js";
 
-const { mockExtractChapterImages } = vi.hoisted(() => ({
-  mockExtractChapterImages: vi.fn(),
+const { mockProcessChapter } = vi.hoisted(() => ({
+  mockProcessChapter: vi.fn(),
 }));
 
-vi.mock("../../src/chapter.js", async (importOriginal) => {
+vi.mock("../../src/process-chapter.js", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/chapter.js")>();
+    await importOriginal<typeof import("../../src/process-chapter.js")>();
   return {
     ...actual,
-    extractChapterImages: mockExtractChapterImages,
+    processChapter: mockProcessChapter,
   };
 });
 const uiMock = {
@@ -85,7 +85,7 @@ describe("runPipeline integration", () => {
   beforeEach(() => {
     tmpDir = createTempDir();
     vi.clearAllMocks();
-    mockExtractChapterImages.mockReset();
+    mockProcessChapter.mockReset();
 
     initConfig({
       outputBase: tmpDir,
@@ -94,15 +94,20 @@ describe("runPipeline integration", () => {
       downloadDelay: 0,
     });
 
-    mockExtractChapterImages.mockImplementation(async (opts) => {
-      const { chapterUrl, onHash, onProgress } = opts;
-      const result = fakeResult(chapterUrl);
+    mockProcessChapter.mockImplementation(async (opts) => {
+      const { chapter, onHash, onProgress } = opts;
+      const result = fakeResult(chapter.url);
       onHash?.(result.urlsHash);
       if (onProgress) {
         onProgress(0, result.urls.length, 0);
         onProgress(result.urls.length, result.urls.length, result.urls.length * 1000);
       }
-      return result;
+      return {
+        title: chapter.title,
+        urls: result.urls,
+        urlsHash: result.urlsHash,
+        chapterUrl: chapter.url,
+      };
     });
   });
 
@@ -126,11 +131,11 @@ describe("runPipeline integration", () => {
       totalPagesExpected: 20,
     });
 
-    expect(result.ok).toBe(4);
+    expect(result.succeeded).toBe(4);
     expect(result.failed).toBe(0);
     expect(result.errors).toHaveLength(0);
-    expect(Object.keys(result.collected)).toHaveLength(4);
-    expect(mockExtractChapterImages).toHaveBeenCalledTimes(4);
+    expect(Object.keys(result.downloaded)).toHaveLength(4);
+    expect(mockProcessChapter).toHaveBeenCalledTimes(4);
   });
 
   it("loads existing progress when resume is true", async () => {
@@ -169,8 +174,8 @@ describe("runPipeline integration", () => {
     });
 
     // All chapters are still processed, but storedUrlsHash is passed for known chapters
-    expect(mockExtractChapterImages).toHaveBeenCalledTimes(4);
-    expect(result.ok).toBe(4);
+    expect(mockProcessChapter).toHaveBeenCalledTimes(4);
+    expect(result.succeeded).toBe(4);
 
     // Verify progress file was updated
     const progressPath = join(comicDir, "progress.json");
@@ -180,7 +185,7 @@ describe("runPipeline integration", () => {
   });
 
   it("continues after a chapter failure", async () => {
-    mockExtractChapterImages
+    mockProcessChapter
       .mockRejectedValueOnce(new Error("Network error"))
       .mockResolvedValueOnce(fakeResult("ch2"))
       .mockResolvedValueOnce(fakeResult("ch3"))
@@ -201,11 +206,11 @@ describe("runPipeline integration", () => {
       totalPagesExpected: 20,
     });
 
-    expect(result.ok).toBe(3);
+    expect(result.succeeded).toBe(3);
     expect(result.failed).toBe(1);
     expect(result.errors).toHaveLength(1);
     expect(result.errors[0]).toContain("Network error");
-    expect(mockExtractChapterImages).toHaveBeenCalledTimes(4);
+    expect(mockProcessChapter).toHaveBeenCalledTimes(4);
   });
 
   it("handles empty sections array", async () => {
@@ -221,14 +226,14 @@ describe("runPipeline integration", () => {
       totalPagesExpected: 0,
     });
 
-    expect(result.ok).toBe(0);
+    expect(result.succeeded).toBe(0);
     expect(result.failed).toBe(0);
     expect(result.errors).toHaveLength(0);
-    expect(mockExtractChapterImages).not.toHaveBeenCalled();
+    expect(mockProcessChapter).not.toHaveBeenCalled();
   });
 
   it("handles a chapter that returns null (no images)", async () => {
-    mockExtractChapterImages
+    mockProcessChapter
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce(fakeResult("ch2"));
 
@@ -247,9 +252,9 @@ describe("runPipeline integration", () => {
       totalPagesExpected: 10,
     });
 
-    expect(result.ok).toBe(1);
+    expect(result.succeeded).toBe(1);
     expect(result.failed).toBe(1);
-    expect(Object.keys(result.collected)).toHaveLength(1);
+    expect(Object.keys(result.downloaded)).toHaveLength(1);
   });
 
   it("saves progress after each chapter", async () => {

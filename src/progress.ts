@@ -93,7 +93,7 @@ export function isChapterDownloaded(
   }
 }
 
-export function filterPending(
+export function filterIncompleteChapters(
   progress: ProgressData | null,
   sections: Section[],
   comicDir: string,
@@ -131,6 +131,6 @@ export function filterSectionsForResume(
 ): Section[] | null {
   if (!shouldResume) return sections;
   const progress = loadProgress(comicDir);
-  const filtered = filterPending(progress, sections, comicDir, overwrite);
+  const filtered = filterIncompleteChapters(progress, sections, comicDir, overwrite);
   return filtered.length === 0 ? null : filtered;
 }

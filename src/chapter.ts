@@ -1,11 +1,8 @@
 import { retry } from "es-toolkit";
-import type { Browser, Page as PlaywrightPage } from "playwright";
-import { createBrowserContext, handleAdultCheck } from "./browser.js";
+import type { Page as PlaywrightPage } from "playwright";
+import { handleAdultCheck } from "./browser.js";
 import { type Config, config as defaultConfig } from "./config.js";
-import { clearChapterDir, computePadLength, downloadImages } from "./download.js";
-import { logger } from "./logger.js";
-import type { SpeedTracker } from "./speed.js";
-import { ensureDir, hashUrls } from "./utils.js";
+import { hashUrls } from "./utils.js";
 
 export {
   buildFilePath,
@@ -148,66 +145,15 @@ async function resolveChapterUrls(
   return collectImageUrls(page, expectedCount, cfg);
 }
 
-export async function extractChapterImages(opts: {
+export async function collectChapterUrls(opts: {
+  page: PlaywrightPage;
   chapterUrl: string;
-  browser: Browser;
-  outputDir: string;
-  tracker: SpeedTracker;
   cfg?: Config;
-  storedUrlsHash?: string;
-  overwrite?: boolean;
-  onHash?: (hash: string) => void;
   onProgress?: (downloaded: number, total: number, bytes: number) => void;
 }): Promise<{ urls: string[]; urlsHash: string } | null> {
-  const {
-    chapterUrl,
-    browser,
-    outputDir,
-    tracker,
-    cfg = defaultConfig,
-    storedUrlsHash,
-    overwrite,
-    onHash,
-    onProgress,
-  } = opts;
-  ensureDir(outputDir);
-
-  const context = await createBrowserContext(browser, cfg);
-  const page = await context.newPage();
-
-  try {
-    await navigateToChapterPage(page, chapterUrl, cfg);
-
-    const urls = await resolveChapterUrls(page, cfg, onProgress);
-    if (!urls || urls.length === 0) return null;
-
-    const urlsHash = hashUrls(urls);
-    onHash?.(urlsHash);
-
-    if (overwrite || (storedUrlsHash !== undefined && storedUrlsHash !== urlsHash)) {
-      logger.debug(
-        storedUrlsHash !== undefined && storedUrlsHash !== urlsHash
-          ? "CDN URLs changed, clearing chapter directory"
-          : "Overwrite enabled, clearing unfinished chapter directory",
-      );
-      clearChapterDir(outputDir);
-    }
-
-    const padLen = computePadLength(urls.length, cfg);
-    const actualCount = urls.length;
-    onProgress?.(0, actualCount, 0);
-    await downloadImages({
-      context,
-      chapterUrl,
-      outputDir,
-      urls,
-      padLen,
-      tracker,
-      cfg,
-      onProgress: (downloaded, bytes) => onProgress?.(downloaded, actualCount, bytes),
-    });
-    return { urls, urlsHash };
-  } finally {
-    await context.close();
-  }
+  const { page, chapterUrl, cfg = defaultConfig, onProgress } = opts;
+  await navigateToChapterPage(page, chapterUrl, cfg);
+  const urls = await resolveChapterUrls(page, cfg, onProgress);
+  if (!urls || urls.length === 0) return null;
+  return { urls, urlsHash: hashUrls(urls) };
 }

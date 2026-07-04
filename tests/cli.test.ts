@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { command } from "../src/cli.js";
-import { applyFilters } from "../src/reporting.js";
+import { filterSectionsByNames } from "../src/reporting.js";
 import type { Section } from "../src/types.js";
 
 function makeSection(name: string, chapters: string[]): Section {
@@ -10,52 +10,52 @@ function makeSection(name: string, chapters: string[]): Section {
   };
 }
 
-describe("applyFilters", () => {
+describe("filterSectionsByNames", () => {
   const sections = [
     makeSection("单行本", ["第01卷", "第02卷", "第03卷"]),
     makeSection("单话", ["第01回", "第02回", "第03回"]),
   ];
 
   it("returns all sections when no filters are set", () => {
-    expect(applyFilters(sections)).toEqual(sections);
+    expect(filterSectionsByNames(sections)).toEqual(sections);
   });
 
   it("filters by exact section name", () => {
-    const result = applyFilters(sections, "单话");
+    const result = filterSectionsByNames(sections, "单话");
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("单话");
   });
 
   it("filters by partial section name", () => {
-    const result = applyFilters(sections, "行本");
+    const result = filterSectionsByNames(sections, "行本");
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("单行本");
   });
 
   it("filters by exact chapter title", () => {
-    const result = applyFilters(sections, undefined, "第01回");
+    const result = filterSectionsByNames(sections, undefined, "第01回");
     expect(result).toHaveLength(1);
     expect(result[0].chapters).toHaveLength(1);
     expect(result[0].chapters[0].title).toBe("第01回");
   });
 
   it("filters by partial chapter title", () => {
-    const result = applyFilters(sections, undefined, "01");
+    const result = filterSectionsByNames(sections, undefined, "01");
     expect(result).toHaveLength(2);
     expect(result[0].name).toBe("单行本");
     expect(result[1].name).toBe("单话");
   });
 
   it("returns empty array when no sections match", () => {
-    expect(applyFilters(sections, "nonexistent")).toEqual([]);
+    expect(filterSectionsByNames(sections, "nonexistent")).toEqual([]);
   });
 
   it("returns empty array when no chapters match", () => {
-    expect(applyFilters(sections, undefined, "第99话")).toEqual([]);
+    expect(filterSectionsByNames(sections, undefined, "第99话")).toEqual([]);
   });
 
   it("filters both section and chapter simultaneously", () => {
-    const result = applyFilters(sections, "单话", "第02");
+    const result = filterSectionsByNames(sections, "单话", "第02");
     expect(result).toHaveLength(1);
     expect(result[0].name).toBe("单话");
     expect(result[0].chapters).toHaveLength(1);

@@ -5,7 +5,7 @@ import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   chapterKey,
   createProgress,
-  filterPending,
+  filterIncompleteChapters,
   loadProgress,
   saveProgress,
   updateChapterProgress,
@@ -104,7 +104,7 @@ describe("updateChapterProgress", () => {
   });
 });
 
-describe("filterPending", () => {
+describe("filterIncompleteChapters", () => {
   let comicDir: string;
 
   beforeEach(() => {
@@ -150,7 +150,7 @@ describe("filterPending", () => {
       extra: { pageCount: 5 },
     });
 
-    const filtered = filterPending(progress, sections, comicDir);
+    const filtered = filterIncompleteChapters(progress, sections, comicDir);
 
     expect(filtered).toHaveLength(1);
     expect(filtered[0].name).toBe("Vol 1");
@@ -163,7 +163,7 @@ describe("filterPending", () => {
 
     const progress = createProgress("Test", "https://example.com");
 
-    const filtered = filterPending(progress, sections, comicDir);
+    const filtered = filterIncompleteChapters(progress, sections, comicDir);
 
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(1);
@@ -176,7 +176,7 @@ describe("filterPending", () => {
 
     const progress = createProgress("Test", "https://example.com");
 
-    const filtered = filterPending(progress, sections, comicDir, false);
+    const filtered = filterIncompleteChapters(progress, sections, comicDir, false);
 
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(2);
@@ -195,7 +195,7 @@ describe("filterPending", () => {
       status: "pending",
     });
 
-    const filtered = filterPending(progress, sections, comicDir, false);
+    const filtered = filterIncompleteChapters(progress, sections, comicDir, false);
 
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(2);
@@ -227,7 +227,7 @@ describe("filterPending", () => {
       status: "pending",
     });
 
-    const filtered = filterPending(progress, sections, comicDir, false);
+    const filtered = filterIncompleteChapters(progress, sections, comicDir, false);
 
     expect(filtered).toHaveLength(2);
     expect(filtered[0].chapters).toHaveLength(1);
@@ -249,7 +249,7 @@ describe("filterPending", () => {
       status: "pending",
     });
 
-    const filtered = filterPending(progress, sections, comicDir, true);
+    const filtered = filterIncompleteChapters(progress, sections, comicDir, true);
 
     expect(filtered).toHaveLength(1);
   });
@@ -275,7 +275,7 @@ describe("filterPending", () => {
       status: "pending",
     });
 
-    const filtered = filterPending(progress, sections, comicDir, true);
+    const filtered = filterIncompleteChapters(progress, sections, comicDir, true);
 
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(2);
@@ -296,7 +296,7 @@ describe("filterPending", () => {
       extra: { pageCount: 10 },
     });
 
-    const filtered = filterPending(progress, sections, comicDir);
+    const filtered = filterIncompleteChapters(progress, sections, comicDir);
     expect(filtered).toEqual([]);
   });
 
@@ -312,7 +312,7 @@ describe("filterPending", () => {
       extra: { error: "timeout" },
     });
 
-    const filtered = filterPending(updated, sections, comicDir);
+    const filtered = filterIncompleteChapters(updated, sections, comicDir);
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(1);
   });
@@ -331,7 +331,7 @@ describe("filterPending", () => {
       extra: { error: "timeout" },
     });
 
-    const filtered = filterPending(updated, sections, comicDir, false);
+    const filtered = filterIncompleteChapters(updated, sections, comicDir, false);
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(1);
     expect(filtered[0].chapters[0].title).toBe("Ch1");
@@ -350,7 +350,7 @@ describe("filterPending", () => {
       status: "pending",
     });
 
-    const filtered = filterPending(updated, sections, comicDir, false);
+    const filtered = filterIncompleteChapters(updated, sections, comicDir, false);
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(1);
     expect(filtered[0].chapters[0].title).toBe("Ch1");
@@ -368,7 +368,7 @@ describe("filterPending", () => {
       extra: { pageCount: 10 },
     });
 
-    const filtered = filterPending(updated, sections, comicDir, false);
+    const filtered = filterIncompleteChapters(updated, sections, comicDir, false);
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(1);
     expect(filtered[0].chapters[0].title).toBe("Ch1");
@@ -388,7 +388,7 @@ describe("filterPending", () => {
       extra: { pageCount: 10 },
     });
 
-    const filtered = filterPending(updated, sections, comicDir, false);
+    const filtered = filterIncompleteChapters(updated, sections, comicDir, false);
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(1);
     expect(filtered[0].chapters[0].title).toBe("Ch2");
@@ -396,7 +396,7 @@ describe("filterPending", () => {
 
   it("returns all sections when progress is null", () => {
     const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
-    const filtered = filterPending(null, sections, comicDir);
+    const filtered = filterIncompleteChapters(null, sections, comicDir);
     expect(filtered).toEqual(sections);
   });
 });

@@ -84,7 +84,7 @@ const DEFAULTS = Object.freeze({
   viewportMaxHeight: 1000,
 });
 
-const LOG_LEVEL_MAP: Record<string, number> = {
+const CONSOLA_LOG_LEVEL_MAP: Record<string, number> = {
   error: 0,
   warn: 2,
   info: 3,
@@ -131,7 +131,7 @@ export function initConfig(cliOverrides?: UserConfigOverrides): void {
 }
 
 export function applyLogLevel(level: string): void {
-  logger.level = LOG_LEVEL_MAP[level] ?? 3;
+  logger.level = CONSOLA_LOG_LEVEL_MAP[level] ?? 3;
 }
 
 export function pickUserAgent(cfg: Config = config): string {

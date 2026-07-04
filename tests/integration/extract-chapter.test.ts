@@ -5,6 +5,8 @@ import { chromium, type Browser } from "playwright";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { config, initConfig } from "../../src/config.js";
 import { SpeedTracker } from "../../src/speed.js";
+import { processChapter } from "../../src/process-chapter.js";
+import { slugify } from "../../src/utils.js";
 import {
   createMockCreateBrowserContext,
   resetRequestCount,
@@ -39,11 +41,16 @@ vi.mock("../../src/browser.js", async (importOriginal) => {
   };
 });
 
-const { extractChapterImages } = await import("../../src/chapter.js");
-
-describe("extractChapterImages integration", () => {
+describe("processChapter integration", () => {
   let browser: Browser;
   let tmpDir: string;
+
+  const sectionName = "Test";
+  const comicTitle = "TestComic";
+
+  function outputDir(dirName: string): string {
+    return join(tmpDir, slugify(comicTitle), slugify(sectionName), slugify(dirName));
+  }
 
   beforeAll(async () => {
     browser = await chromium.launch({ headless: true });
@@ -69,6 +76,7 @@ describe("extractChapterImages integration", () => {
 
   beforeEach(() => {
     tmpDir = createTempDir();
+    config.outputBase = tmpDir;
     vi.clearAllMocks();
     resetRequestCount();
     mockCreateBrowserContext.mockReset();
@@ -89,19 +97,21 @@ describe("extractChapterImages integration", () => {
     return [{ urlPattern: fixtureUrl, html }];
   }
 
-  it("extracts images from a single-page chapter", async () => {
+  it("process images from a single-page chapter", async () => {
     const fixtureUrl = "12345.html";
     setupMock(defaultFixture(fixtureUrl, chapterSingleHtml));
 
     const chapterUrl = `https://www.manhuagui.com/comic/7580/${fixtureUrl}`;
-    const outputDir = join(tmpDir, "single-chapter");
     const tracker = new SpeedTracker();
 
-    const result = await extractChapterImages({
-      chapterUrl,
+    const result = await processChapter({
+      chapter: { title: "single-chapter", url: chapterUrl, pageCount: 10 },
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
     });
 
     expect(result).not.toBeNull();
@@ -109,15 +119,16 @@ describe("extractChapterImages integration", () => {
     expect(result!.urlsHash).toBeTruthy();
     expect(result!.urlsHash).toHaveLength(16);
 
-    const files = readdirSync(outputDir);
+    const outDir = outputDir("single-chapter");
+    const files = readdirSync(outDir);
     expect(files).toHaveLength(10);
     for (const file of files) {
-      const stat = statSync(join(outputDir, file));
+      const stat = statSync(join(outDir, file));
       expect(stat.size).toBeGreaterThan(0);
     }
   });
 
-  it("extracts images from a multi-tab chapter", async () => {
+  it("process images from a multi-tab chapter", async () => {
     const p1Url = "multi.html";
     const p2Url = "multi_p2.html";
     setupMock([
@@ -126,21 +137,24 @@ describe("extractChapterImages integration", () => {
     ]);
 
     const chapterUrl = `https://www.manhuagui.com/comic/7580/${p1Url}`;
-    const outputDir = join(tmpDir, "multi-chapter");
     const tracker = new SpeedTracker();
 
-    const result = await extractChapterImages({
-      chapterUrl,
+    const result = await processChapter({
+      chapter: { title: "multi-chapter", url: chapterUrl, pageCount: 10 },
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
     });
 
     expect(result).not.toBeNull();
     expect(result!.urls).toHaveLength(10);
     expect(result!.urlsHash).toHaveLength(16);
 
-    const files = readdirSync(outputDir);
+    const outDir = outputDir("multi-chapter");
+    const files = readdirSync(outDir);
     expect(files).toHaveLength(10);
   });
 
@@ -157,14 +171,16 @@ describe("extractChapterImages integration", () => {
     });
 
     const chapterUrl = `https://www.manhuagui.com/comic/4736/${fixtureUrl}`;
-    const outputDir = join(tmpDir, "adult-chapter");
     const tracker = new SpeedTracker();
 
-    const result = await extractChapterImages({
-      chapterUrl,
+    const result = await processChapter({
+      chapter: { title: "adult-chapter", url: chapterUrl, pageCount: 10 },
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
     });
 
     expect(result).not.toBeNull();
@@ -178,14 +194,16 @@ describe("extractChapterImages integration", () => {
     setupMock(defaultFixture(fixtureUrl, zeroPageHtml));
 
     const chapterUrl = `https://www.manhuagui.com/comic/7580/${fixtureUrl}`;
-    const outputDir = join(tmpDir, "empty-chapter");
     const tracker = new SpeedTracker();
 
-    const result = await extractChapterImages({
-      chapterUrl,
+    const result = await processChapter({
+      chapter: { title: "empty-chapter", url: chapterUrl, pageCount: 0 },
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
     });
 
     expect(result).toBeNull();
@@ -196,31 +214,40 @@ describe("extractChapterImages integration", () => {
     setupMock(defaultFixture(fixtureUrl, chapterSingleHtml));
 
     const chapterUrl = `https://www.manhuagui.com/comic/7580/${fixtureUrl}`;
-    const outputDir = join(tmpDir, "skip-chapter");
     const tracker = new SpeedTracker();
 
+    const chapter = { title: "skip-chapter", url: chapterUrl, pageCount: 10 };
+
     // First run — downloads all images
-    const result1 = await extractChapterImages({
-      chapterUrl,
+    const result1 = await processChapter({
+      chapter,
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
     });
 
     expect(result1).not.toBeNull();
     const firstHash = result1!.urlsHash;
 
+    const outDir = outputDir("skip-chapter");
+
     // Capture modification times after first download
     const firstMtimes = new Map(
-      readdirSync(outputDir).map((f) => [f, statSync(join(outputDir, f)).mtimeMs]),
+      readdirSync(outDir).map((f) => [f, statSync(join(outDir, f)).mtimeMs]),
     );
 
     // Second run — hash matches, should keep existing files
-    const result2 = await extractChapterImages({
-      chapterUrl,
+    const result2 = await processChapter({
+      chapter,
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
       storedUrlsHash: firstHash,
     });
 
@@ -229,7 +256,7 @@ describe("extractChapterImages integration", () => {
 
     // Files should still exist with same modification times
     const secondMtimes = new Map(
-      readdirSync(outputDir).map((f) => [f, statSync(join(outputDir, f)).mtimeMs]),
+      readdirSync(outDir).map((f) => [f, statSync(join(outDir, f)).mtimeMs]),
     );
     for (const [file, mtime] of firstMtimes) {
       expect(secondMtimes.get(file)).toBe(mtime);
@@ -250,27 +277,35 @@ describe("extractChapterImages integration", () => {
     ]);
 
     const chapterUrl = `https://www.manhuagui.com/comic/7580/${fixtureUrl}`;
-    const outputDir = join(tmpDir, "cdn-chapter");
     const tracker = new SpeedTracker();
 
+    const chapter = { title: "cdn-chapter", url: chapterUrl, pageCount: 10 };
+
     // First run
-    const result1 = await extractChapterImages({
-      chapterUrl,
+    const result1 = await processChapter({
+      chapter,
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
     });
     expect(result1).not.toBeNull();
-    const firstFiles = readdirSync(outputDir);
+    const outDir = outputDir("cdn-chapter");
+    const firstFiles = readdirSync(outDir);
     expect(firstFiles.length).toBeGreaterThan(0);
 
     // Second run — different fixture produces different hash
-    const chapterUrl2 = `https://www.manhuagui.com/comic/7580/different.html`;
-    const result2 = await extractChapterImages({
-      chapterUrl: chapterUrl2,
+    const chapter2 = { title: "cdn-chapter", url: `https://www.manhuagui.com/comic/7580/different.html`, pageCount: 10 };
+    const result2 = await processChapter({
+      chapter: chapter2,
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
       storedUrlsHash: result1!.urlsHash,
     });
 
@@ -278,7 +313,7 @@ describe("extractChapterImages integration", () => {
     expect(result2!.urlsHash).not.toBe(result1!.urlsHash);
 
     // Files should have been cleared and recreated
-    const secondFiles = readdirSync(outputDir);
+    const secondFiles = readdirSync(outDir);
     expect(secondFiles.length).toBeGreaterThan(0);
   });
 
@@ -303,23 +338,26 @@ describe("extractChapterImages integration", () => {
     mockCreateBrowserContext.mockImplementation(mockCtx);
 
     const chapterUrl = `https://www.manhuagui.com/comic/7580/${fixtureUrl}`;
-    const outputDir = join(tmpDir, "retry-chapter");
     const tracker = new SpeedTracker();
 
-    const result = await extractChapterImages({
-      chapterUrl,
+    const result = await processChapter({
+      chapter: { title: "retry-chapter", url: chapterUrl, pageCount: 10 },
+      sectionName,
+      comicTitle,
       browser,
-      outputDir,
       tracker,
+      cfg: config,
+      overwrite: false,
     });
 
     expect(result).not.toBeNull();
     expect(result!.urls).toHaveLength(10);
 
-    const files = readdirSync(outputDir);
+    const outDir = outputDir("retry-chapter");
+    const files = readdirSync(outDir);
     expect(files).toHaveLength(10);
     for (const file of files) {
-      expect(statSync(join(outputDir, file)).size).toBeGreaterThan(0);
+      expect(statSync(join(outDir, file)).size).toBeGreaterThan(0);
     }
   });
 });

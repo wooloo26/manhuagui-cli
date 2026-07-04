@@ -1,20 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { CancelledError } from "../src/errors.js";
+import { CanceledError } from "../src/errors.js";
 
-describe("CancelledError", () => {
-  it("is an instance of CancelledError", () => {
-    expect(new CancelledError()).toBeInstanceOf(CancelledError);
+describe("CanceledError", () => {
+  it("is an instance of CanceledError", () => {
+    expect(new CanceledError()).toBeInstanceOf(CanceledError);
   });
 
   it("is an instance of Error", () => {
-    expect(new CancelledError()).toBeInstanceOf(Error);
+    expect(new CanceledError()).toBeInstanceOf(Error);
   });
 
-  it("has name CancelledError", () => {
-    expect(new CancelledError().name).toBe("CancelledError");
+  it("has name CanceledError", () => {
+    expect(new CanceledError().name).toBe("CanceledError");
   });
 
-  it("has message User cancelled", () => {
-    expect(new CancelledError().message).toBe("User cancelled");
+  it("has message User canceled", () => {
+    expect(new CanceledError().message).toBe("User canceled");
   });
 });

@@ -86,7 +86,7 @@ interface DownloadResult {
 }
 
 async function downloadImage(opts: {
-  dlPage: PlaywrightPage;
+  downloadPage: PlaywrightPage;
   chapterUrl: string;
   url: string;
   outputDir: string;
@@ -94,7 +94,7 @@ async function downloadImage(opts: {
   padLen: number;
   cfg: Config;
 }): Promise<DownloadResult> {
-  const { dlPage, chapterUrl, url, outputDir, imageIndex, padLen, cfg } = opts;
+  const { downloadPage, chapterUrl, url, outputDir, imageIndex, padLen, cfg } = opts;
   const filePath = buildFilePath({
     outputDir,
     index: imageIndex,
@@ -108,13 +108,13 @@ async function downloadImage(opts: {
     const result = await retry(
       async () => {
         const started = Date.now();
-        const response = await dlPage.goto(downloadUrl, {
+        const response = await downloadPage.goto(downloadUrl, {
           referer: chapterUrl,
           waitUntil: "load",
           timeout: cfg.pageLoadTimeout,
         });
         validateImageResponse(response);
-        const base64 = await fetchImageAsBase64(dlPage);
+        const base64 = await fetchImageAsBase64(downloadPage);
         const buffer = Buffer.from(base64, "base64");
         writeFileSync(filePath, buffer);
         return { ok: true as const, bytes: buffer.length, durationMs: Date.now() - started };
@@ -183,7 +183,7 @@ export async function downloadImages(opts: {
           }
 
           return downloadImage({
-            dlPage: downloadPages[idx],
+            downloadPage: downloadPages[idx],
             chapterUrl,
             url,
             outputDir,

@@ -1,6 +1,6 @@
 import chalk from "chalk";
 import logUpdate from "log-update";
-import { type EtaDelayParams, estimateOverallEta, SpeedTracker } from "./speed.js";
+import { type DelayParams, SpeedTracker } from "./speed.js";
 
 const BAR_WIDTH = 40;
 const SEP = chalk.dim(" \u00B7 ");
@@ -51,14 +51,14 @@ export class DownloadUI {
   private totalPagesExpected: number = 0;
   private pagesDoneBeforeChapter: number = 0;
   private currentChapterExpected: number = 0;
-  private delays: EtaDelayParams;
+  private delays: DelayParams;
 
   constructor(
     totalChapters: number,
     initialCompleted: number,
     totalPagesExpected: number,
     initialPagesDone: number,
-    delays: EtaDelayParams,
+    delays: DelayParams,
   ) {
     this.overallStart = Date.now();
     this.totalChapters = totalChapters;
@@ -130,7 +130,7 @@ export class DownloadUI {
   }
 
   render(): void {
-    const overallEtaSec = estimateOverallEta(
+    const overallEtaSec = SpeedTracker.estimateOverallEta(
       {
         overallStart: this.overallStart,
         chapterStart: this.chapterStart,

@@ -7,7 +7,7 @@ import { chromium } from "playwright";
 import { createBrowserContext } from "./browser.js";
 import { parseComicPage } from "./comic.js";
 import { applyLogLevel, config, initConfig, type UserConfigOverrides } from "./config.js";
-import { CancelledError } from "./errors.js";
+import { CanceledError } from "./errors.js";
 import { logger } from "./logger.js";
 import {
   buildChapterIndexMap,
@@ -23,9 +23,9 @@ import {
   promptUrl,
 } from "./prompts.js";
 import {
-  applyFilters,
   countTotalPages,
   displayDryRun,
+  filterSectionsByNames,
   logSectionSummary,
   reportResults,
 } from "./reporting.js";
@@ -127,7 +127,7 @@ async function runDirect(opts: {
   const browser = await launchBrowser();
   try {
     const comic = await parseComicWithSpinner(browser, url);
-    const sections = applyFilters(comic.sections, sectionFilter, chapterFilter);
+    const sections = filterSectionsByNames(comic.sections, sectionFilter, chapterFilter);
     if (sections.length === 0) {
       throw new Error("No chapters found matching filters");
     }
@@ -287,7 +287,7 @@ export const command = defineCommand({
         await runInteractive(args.resume, args.overwrite, args["dry-run"]);
       }
     } catch (err) {
-      if (err instanceof CancelledError) {
+      if (err instanceof CanceledError) {
         outro("Cancelled.");
         return;
       }

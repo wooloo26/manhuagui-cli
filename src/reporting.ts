@@ -1,7 +1,7 @@
 import type { PipelineResult } from "./tasks.js";
 import type { Section } from "./types.js";
 
-export function applyFilters(
+export function filterSectionsByNames(
   sections: Section[],
   sectionFilter?: string,
   chapterFilter?: string,
@@ -45,9 +45,9 @@ export function reportResults(
   log: (msg: string) => void,
   warn: (msg: string) => void,
 ): void {
-  log(`Done. ${result.ok} OK, ${result.failed} failed, ${attempted} total attempted.`);
-  if (Object.keys(result.collected).length > 0) {
-    log(`Downloaded ${Object.keys(result.collected).length} chapters.`);
+  log(`Done. ${result.succeeded} OK, ${result.failed} failed, ${attempted} total attempted.`);
+  if (Object.keys(result.downloaded).length > 0) {
+    log(`Downloaded ${Object.keys(result.downloaded).length} chapters.`);
   }
   if (result.errors.length > 0) {
     warn(`${result.errors.length} errors:`);

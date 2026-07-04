@@ -1,6 +1,6 @@
-export class CancelledError extends Error {
+export class CanceledError extends Error {
   constructor() {
-    super("User cancelled");
-    this.name = "CancelledError";
+    super("User canceled");
+    this.name = "CanceledError";
   }
 }
