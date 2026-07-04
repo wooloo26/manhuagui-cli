@@ -254,7 +254,21 @@ async function runInteractive(resume: boolean, overwrite: boolean, dryRun: boole
       shouldOverwrite = await promptOverwriteCheck();
     }
 
-    let selected = await promptSections(comic.sections);
+    let initialSections: string[] | undefined;
+    if (shouldResume) {
+      const progress = loadProgress(comicDir);
+      if (progress) {
+        initialSections = comic.sections
+          .filter((s) =>
+            s.chapters.some((c) => {
+              const p = progress.chapters[chapterKey(s.name, c.title)];
+              return p && p.status !== "done";
+            }),
+          )
+          .map((s) => s.name);
+      }
+    }
+    let selected = await promptSections(comic.sections, initialSections);
 
     const chapterIndexMap = buildChapterIndexMap(selected);
     const totalPagesExpected = countTotalPages(selected);

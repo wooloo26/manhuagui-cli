@@ -23,7 +23,10 @@ export async function promptUrl(): Promise<string> {
   return result;
 }
 
-export async function promptSections(sections: Section[]): Promise<Section[]> {
+export async function promptSections(
+  sections: Section[],
+  initialValues?: string[],
+): Promise<Section[]> {
   if (sections.length === 0) {
     throw new Error("No sections found on the page. The website structure may have changed.");
   }
@@ -37,6 +40,7 @@ export async function promptSections(sections: Section[]): Promise<Section[]> {
     message: "Select sections to download",
     options,
     required: true,
+    initialValues,
   });
 
   assertNotCanceled(selected);
