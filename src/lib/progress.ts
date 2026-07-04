@@ -7,6 +7,7 @@ import { atomicSaveJSON } from "./utils.js";
 export interface ChapterProgress {
   status: "done" | "failed";
   pageCount?: number;
+  urlsHash?: string;
   error?: string;
 }
 
@@ -37,14 +38,19 @@ export function saveProgress(comicDir: string, data: ProgressData): void {
   atomicSaveJSON(join(comicDir, "progress.json"), data);
 }
 
-export function markChapter(opts: {
+export function updateChapterProgress(opts: {
   comicDir: string;
   progress: ProgressData;
   key: string;
   status: "done" | "failed";
-  extra?: { pageCount?: number; error?: string };
+  extra?: { pageCount?: number; urlsHash?: string; error?: string };
 }): void {
-  opts.progress.chapters[opts.key] = { status: opts.status, ...opts.extra };
+  const prevUrlsHash = opts.progress.chapters[opts.key]?.urlsHash;
+  const entry: ChapterProgress = { status: opts.status, ...opts.extra };
+  if (prevUrlsHash && !entry.urlsHash) {
+    entry.urlsHash = prevUrlsHash;
+  }
+  opts.progress.chapters[opts.key] = entry;
   saveProgress(opts.comicDir, opts.progress);
 }
 
@@ -62,8 +68,12 @@ export function countCompletedPages(progress: ProgressData): number {
   return count;
 }
 
-export function filterPending(progress: ProgressData | null, sections: Section[]): Section[] {
-  if (!progress) return sections;
+export function filterPending(
+  progress: ProgressData | null,
+  sections: Section[],
+  overwrite = false,
+): Section[] {
+  if (overwrite || !progress) return sections;
 
   return sections
     .map((s) => ({

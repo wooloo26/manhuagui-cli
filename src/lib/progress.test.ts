@@ -9,8 +9,8 @@ import {
   createProgress,
   filterPending,
   loadProgress,
-  markChapter,
   saveProgress,
+  updateChapterProgress,
 } from "./progress.js";
 import type { Chapter, Section } from "./types.js";
 
@@ -68,12 +68,12 @@ describe("saveProgress and loadProgress", () => {
   });
 });
 
-describe("markChapter", () => {
+describe("updateChapterProgress", () => {
   it("records a finished chapter", () => {
     const comicDir = join(testDir, "mark-done");
     const progress = createProgress("Test", "https://example.com");
 
-    markChapter({
+    updateChapterProgress({
       comicDir,
       progress,
       key: chapterKey("Vol 1", "Ch1"),
@@ -89,7 +89,7 @@ describe("markChapter", () => {
     const comicDir = join(testDir, "mark-failed");
     const progress = createProgress("Test", "https://example.com");
 
-    markChapter({
+    updateChapterProgress({
       comicDir,
       progress,
       key: chapterKey("Vol 1", "Ch2"),
@@ -121,14 +121,14 @@ describe("filterPending", () => {
     ];
 
     const progress = createProgress("Test", "https://example.com");
-    markChapter({
+    updateChapterProgress({
       comicDir: testDir,
       progress,
       key: "Vol 1::Ch1",
       status: "done",
       extra: { pageCount: 10 },
     });
-    markChapter({
+    updateChapterProgress({
       comicDir: testDir,
       progress,
       key: "Vol 2::Ch3",
@@ -148,7 +148,7 @@ describe("filterPending", () => {
     const sections = [section("Vol 1", [chapter("Ch1")])];
 
     const progress = createProgress("Test", "https://example.com");
-    markChapter({
+    updateChapterProgress({
       comicDir: testDir,
       progress,
       key: "Vol 1::Ch1",
@@ -164,7 +164,7 @@ describe("filterPending", () => {
     const sections = [section("Vol 1", [chapter("Ch1")])];
 
     const progress = createProgress("Test", "https://example.com");
-    markChapter({
+    updateChapterProgress({
       comicDir: testDir,
       progress,
       key: "Vol 1::Ch1",

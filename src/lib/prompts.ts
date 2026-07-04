@@ -62,3 +62,13 @@ export async function promptResume(done: number, total: number): Promise<boolean
   assertNotCanceled(result);
   return result;
 }
+
+export async function promptOverwriteCheck(): Promise<boolean> {
+  const result = await confirm({
+    message: "Force overwrite previously downloaded chapters?",
+    initialValue: false,
+  });
+
+  assertNotCanceled(result);
+  return result;
+}

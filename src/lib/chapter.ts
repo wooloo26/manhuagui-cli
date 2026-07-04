@@ -1,4 +1,4 @@
-import { writeFileSync } from "node:fs";
+import { existsSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Browser, BrowserContext, Page as PlaywrightPage, Response } from "playwright";
 import { createBrowserContext, handleAdultCheck } from "./browser.js";
@@ -6,7 +6,7 @@ import { config } from "./config.js";
 import { rotateHost } from "./download.js";
 import { logger } from "./logger.js";
 import type { SpeedTracker } from "./speed.js";
-import { ensureDir, sleep } from "./utils.js";
+import { ensureDir, hashUrls, sleep } from "./utils.js";
 
 export function computePadLength(count: number): number {
   return Math.max(config.padMinLength, String(count).length);
@@ -189,16 +189,24 @@ async function downloadImages(opts: {
       const batch = urls.slice(i, i + concurrency);
 
       const results = await Promise.all(
-        batch.map((url, idx) =>
-          downloadImage({
+        batch.map(async (url, idx) => {
+          const imageIndex = i + idx;
+          const ext = extractExtension(url);
+          const filePath = buildFilePath({ outputDir, index: imageIndex, padLen, ext });
+
+          if (existsSync(filePath) && statSync(filePath).size > 0) {
+            return { ok: true, bytes: 0, durationMs: 0 };
+          }
+
+          return downloadImage({
             dlPage: downloadPages[idx],
             chapterUrl,
             url,
             outputDir,
-            imageIndex: i + idx,
+            imageIndex,
             padLen,
-          }),
-        ),
+          });
+        }),
       );
 
       let batchBytes = 0;
@@ -213,7 +221,7 @@ async function downloadImages(opts: {
       onProgress?.(Math.min(i + batch.length, urls.length), batchBytes);
 
       const isLast = i + concurrency >= urls.length;
-      if (!isLast && config.downloadDelay > 0) {
+      if (!isLast && config.downloadDelay > 0 && batchBytes > 0) {
         await sleep(Math.round(config.downloadDelay * (0.5 + Math.random())));
       }
     }
@@ -246,9 +254,13 @@ export async function extractChapterImages(opts: {
   browser: Browser;
   outputDir: string;
   tracker: SpeedTracker;
+  storedUrlsHash?: string;
+  overwrite?: boolean;
+  onHash?: (hash: string) => void;
   onProgress?: (downloaded: number, total: number, bytes: number) => void;
-}): Promise<string[]> {
-  const { chapterUrl, browser, outputDir, tracker, onProgress } = opts;
+}): Promise<{ urls: string[]; urlsHash: string } | null> {
+  const { chapterUrl, browser, outputDir, tracker, storedUrlsHash, overwrite, onHash, onProgress } =
+    opts;
   ensureDir(outputDir);
 
   const context = await createBrowserContext(browser);
@@ -264,12 +276,27 @@ export async function extractChapterImages(opts: {
       urls = await collectImageUrlsFromSubPages(page, subPageUrls);
     } else {
       const expectedCount = await getPageCount(page);
-      if (expectedCount <= 0) return [];
+      if (expectedCount <= 0) return null;
       onProgress?.(0, expectedCount, 0);
       urls = await collectImageUrls(page, expectedCount);
     }
 
-    if (urls.length === 0) return [];
+    if (urls.length === 0) return null;
+
+    const urlsHash = hashUrls(urls);
+    onHash?.(urlsHash);
+
+    const cdnChanged = storedUrlsHash !== undefined && storedUrlsHash !== urlsHash;
+    if (overwrite || cdnChanged) {
+      if (cdnChanged) logger.debug("CDN URLs changed, clearing chapter directory");
+      try {
+        for (const f of readdirSync(outputDir)) {
+          rmSync(join(outputDir, f), { force: true });
+        }
+      } catch {
+        // directory may not exist yet
+      }
+    }
 
     const padLen = computePadLength(urls.length);
     const actualCount = urls.length;
@@ -283,7 +310,7 @@ export async function extractChapterImages(opts: {
       tracker,
       onProgress: (downloaded, bytes) => onProgress?.(downloaded, actualCount, bytes),
     });
-    return urls;
+    return { urls, urlsHash };
   } finally {
     await context.close();
   }

@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 
@@ -34,4 +35,8 @@ export function atomicSaveJSON(filePath: string, data: unknown): void {
   const tmpPath = `${filePath}.tmp`;
   writeFileSync(tmpPath, JSON.stringify(data, null, 2), "utf-8");
   renameSync(tmpPath, filePath);
+}
+
+export function hashUrls(urls: string[]): string {
+  return createHash("sha256").update(urls.sort().join("\n")).digest("hex").slice(0, 16);
 }

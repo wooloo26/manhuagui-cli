@@ -9,7 +9,13 @@ import { config, initConfig, type UserConfigOverrides } from "./config.js";
 import { CancelledError } from "./errors.js";
 import { logger } from "./logger.js";
 import { chapterKey, filterPending, loadProgress } from "./progress.js";
-import { promptConfirm, promptResume, promptSections, promptUrl } from "./prompts.js";
+import {
+  promptConfirm,
+  promptOverwriteCheck,
+  promptResume,
+  promptSections,
+  promptUrl,
+} from "./prompts.js";
 import { type PipelineResult, runPipeline } from "./tasks.js";
 import type { ComicInfo, Section } from "./types.js";
 import { slugify } from "./utils.js";
@@ -79,22 +85,47 @@ function reportResults(result: PipelineResult, attempted: number): void {
   }
 }
 
+function buildChapterIndexMap(sections: Section[]): Map<string, number> {
+  const map = new Map<string, number>();
+  let idx = 0;
+  for (const s of sections) {
+    for (const c of s.chapters) {
+      map.set(chapterKey(s.name, c.title), ++idx);
+    }
+  }
+  return map;
+}
+
 async function executeAndReport(opts: {
   sections: Section[];
+  chapterIndexMap: Map<string, number>;
   comic: ComicInfo;
   url: string;
   browser: Browser;
   resume: boolean;
+  overwrite: boolean;
   totalChapters: number;
   totalPagesExpected: number;
 }): Promise<void> {
-  const { sections, comic, url, browser, resume, totalChapters, totalPagesExpected } = opts;
+  const {
+    sections,
+    chapterIndexMap,
+    comic,
+    url,
+    browser,
+    resume,
+    overwrite,
+    totalChapters,
+    totalPagesExpected,
+  } = opts;
   const result = await runPipeline({
     sections,
+    chapterIndexMap,
     comicTitle: comic.title,
     comicUrl: url,
     browser,
     resume,
+    overwrite,
     totalPagesExpected,
   });
   reportResults(result, totalChapters);
@@ -132,9 +163,10 @@ async function runDirect(opts: {
   sectionFilter: string | undefined;
   chapterFilter: string | undefined;
   resume: boolean;
+  overwrite: boolean;
   dryRun: boolean;
 }) {
-  const { url, sectionFilter, chapterFilter, resume, dryRun } = opts;
+  const { url, sectionFilter, chapterFilter, resume, overwrite, dryRun } = opts;
   const browser = await launchBrowser();
 
   try {
@@ -145,6 +177,8 @@ async function runDirect(opts: {
       throw new Error("No chapters found matching filters");
     }
 
+    const chapterIndexMap = buildChapterIndexMap(sections);
+
     const totalPagesExpected = sections.reduce(
       (sum, s) => sum + s.chapters.reduce((cs, c) => cs + c.pageCount, 0),
       0,
@@ -154,7 +188,7 @@ async function runDirect(opts: {
       const comicDir = join(config.outputBase, slugify(comic.title));
       const progress = loadProgress(comicDir);
       if (progress) {
-        sections = filterPending(progress, sections);
+        sections = filterPending(progress, sections, overwrite);
         if (sections.length === 0) {
           logger.info("All chapters already downloaded.");
           return;
@@ -171,10 +205,12 @@ async function runDirect(opts: {
 
     await executeAndReport({
       sections,
+      chapterIndexMap,
       comic,
       url,
       browser,
       resume,
+      overwrite,
       totalChapters,
       totalPagesExpected,
     });
@@ -183,7 +219,7 @@ async function runDirect(opts: {
   }
 }
 
-async function runInteractive(resume: boolean, dryRun: boolean) {
+async function runInteractive(resume: boolean, overwrite: boolean, dryRun: boolean) {
   intro("Manhuagui Scraper");
 
   const url = await promptUrl();
@@ -200,7 +236,14 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
       comicDir,
     });
 
+    let shouldOverwrite = overwrite;
+    if (shouldResume && !overwrite) {
+      shouldOverwrite = await promptOverwriteCheck();
+    }
+
     let selected = await promptSections(comic.sections);
+
+    const chapterIndexMap = buildChapterIndexMap(selected);
 
     const totalPagesExpected = selected.reduce(
       (sum, s) => sum + s.chapters.reduce((cs, c) => cs + c.pageCount, 0),
@@ -210,7 +253,7 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
     if (shouldResume) {
       const progress = loadProgress(comicDir);
       if (progress) {
-        selected = filterPending(progress, selected);
+        selected = filterPending(progress, selected, shouldOverwrite);
         if (selected.length === 0) {
           outro("All chapters already downloaded.");
           return;
@@ -234,10 +277,12 @@ async function runInteractive(resume: boolean, dryRun: boolean) {
 
     await executeAndReport({
       sections: selected,
+      chapterIndexMap,
       comic,
       url,
       browser,
       resume: shouldResume,
+      overwrite: shouldOverwrite,
       totalChapters,
       totalPagesExpected,
     });
@@ -272,6 +317,12 @@ export const command = defineCommand({
       type: "boolean",
       description: "断点续传 / Resume from previous download",
       alias: "r",
+      default: false,
+    },
+    overwrite: {
+      type: "boolean",
+      description: "覆盖已下载章节 / Overwrite previously downloaded chapters",
+      alias: "O",
       default: false,
     },
     "dry-run": {
@@ -315,10 +366,11 @@ export const command = defineCommand({
           sectionFilter: args.section,
           chapterFilter: args.chapter,
           resume: args.resume,
+          overwrite: args.overwrite,
           dryRun: args["dry-run"],
         });
       } else {
-        await runInteractive(args.resume, args["dry-run"]);
+        await runInteractive(args.resume, args.overwrite, args["dry-run"]);
       }
     } catch (err) {
       if (err instanceof CancelledError) {
