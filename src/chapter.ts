@@ -258,7 +258,6 @@ async function collectImageUrlsFromSubPages(
   }
   return allUrls;
 }
-
 export async function extractChapterImages(opts: {
   chapterUrl: string;
   browser: Browser;
@@ -298,7 +297,11 @@ export async function extractChapterImages(opts: {
 
     const cdnChanged = storedUrlsHash !== undefined && storedUrlsHash !== urlsHash;
     if (overwrite || cdnChanged) {
-      if (cdnChanged) logger.debug("CDN URLs changed, clearing chapter directory");
+      logger.debug(
+        cdnChanged
+          ? "CDN URLs changed, clearing chapter directory"
+          : "Overwrite enabled, clearing unfinished chapter directory",
+      );
       try {
         for (const f of readdirSync(outputDir)) {
           rmSync(join(outputDir, f), { force: true });

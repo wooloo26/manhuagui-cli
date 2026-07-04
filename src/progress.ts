@@ -1,10 +1,10 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { produce } from "immer";
 import { z } from "zod";
 import { logger } from "./logger.js";
 import type { Section } from "./types.js";
-import { atomicSaveJSON } from "./utils.js";
+import { atomicSaveJSON, slugify } from "./utils.js";
 
 const ChapterProgressSchema = z.object({
   status: z.enum(["done", "failed", "pending"]),
@@ -76,19 +76,37 @@ export function countCompletedPages(progress: ProgressData): number {
   return count;
 }
 
+export function isChapterDownloaded(
+  comicDir: string,
+  sectionName: string,
+  chapterTitle: string,
+): boolean {
+  try {
+    const dir = join(comicDir, slugify(sectionName), slugify(chapterTitle));
+    const files = readdirSync(dir);
+    for (const f of files) {
+      if (!f.startsWith(".")) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function filterPending(
   progress: ProgressData | null,
   sections: Section[],
+  comicDir: string,
   overwrite = false,
 ): Section[] {
-  if (overwrite || !progress) return sections;
-
   return sections
     .map((s) => ({
       ...s,
       chapters: s.chapters.filter((c) => {
-        const p = progress.chapters[chapterKey(s.name, c.title)];
-        return p?.status !== "done";
+        const p = progress?.chapters[chapterKey(s.name, c.title)];
+        if (p?.status === "done") return false;
+        if (!overwrite && isChapterDownloaded(comicDir, s.name, c.title)) return false;
+        return true;
       }),
     }))
     .filter((s) => s.chapters.length > 0);

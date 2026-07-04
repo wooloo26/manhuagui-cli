@@ -65,7 +65,7 @@ export async function promptResume(done: number, total: number): Promise<boolean
 
 export async function promptOverwriteCheck(): Promise<boolean> {
   const result = await confirm({
-    message: "Force overwrite previously downloaded chapters?",
+    message: "Overwrite unfinished chapters? (completed chapters are safe)",
     initialValue: false,
   });
 

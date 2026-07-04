@@ -97,8 +97,7 @@ function filterSectionsForResume(
 ): Section[] | null {
   if (!shouldResume) return sections;
   const progress = loadProgress(comicDir);
-  if (!progress) return sections;
-  const filtered = filterPending(progress, sections, overwrite);
+  const filtered = filterPending(progress, sections, comicDir, overwrite);
   return filtered.length === 0 ? null : filtered;
 }
 
@@ -283,7 +282,7 @@ async function runInteractive(resume: boolean, overwrite: boolean, dryRun: boole
       url,
       browser,
       resume: shouldResume,
-      overwrite: shouldOverwrite,
+      overwrite,
       totalChapters,
       totalPagesExpected,
     });
@@ -322,7 +321,7 @@ export const command = defineCommand({
     },
     overwrite: {
       type: "boolean",
-      description: "覆盖已下载章节 / Overwrite previously downloaded chapters",
+      description: "续传时覆盖未完成的章节 / Overwrite unfinished chapters when resuming",
       alias: "O",
       default: false,
     },

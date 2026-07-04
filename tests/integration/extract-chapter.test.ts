@@ -272,7 +272,6 @@ describe("extractChapterImages integration", () => {
       outputDir,
       tracker,
       storedUrlsHash: result1!.urlsHash,
-      overwrite: false,
     });
 
     expect(result2).not.toBeNull();

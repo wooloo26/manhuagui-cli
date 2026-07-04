@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import {
   chapterKey,
   createProgress,
@@ -11,6 +11,7 @@ import {
   updateChapterProgress,
 } from "../src/progress.js";
 import type { Chapter, Section } from "../src/types.js";
+import { slugify } from "../src/utils.js";
 
 const testDir = join(tmpdir(), `manhuagui-progress-${Date.now()}`);
 
@@ -104,6 +105,12 @@ describe("updateChapterProgress", () => {
 });
 
 describe("filterPending", () => {
+  let comicDir: string;
+
+  beforeEach(() => {
+    comicDir = join(testDir, `filter-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  });
+
   function chapter(title: string, pageCount = 10): Chapter {
     return { title, url: `/comic/1/${title}.html`, pageCount };
   }
@@ -112,11 +119,20 @@ describe("filterPending", () => {
     return { name, chapters };
   }
 
-  it("removes done chapters", () => {
+  function makeChapterDir(sectionName: string, chapterTitle: string) {
+    const dir = join(comicDir, slugify(sectionName), slugify(chapterTitle));
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, "001.webp"), "fake");
+  }
+
+  it("removes done chapters regardless of filesystem", () => {
     const sections = [
       section("Vol 1", [chapter("Ch1"), chapter("Ch2")]),
       section("Vol 2", [chapter("Ch3")]),
     ];
+
+    makeChapterDir("Vol 1", "Ch1");
+    makeChapterDir("Vol 2", "Ch3");
 
     let progress = createProgress("Test", "https://example.com");
     progress = updateChapterProgress({
@@ -134,7 +150,7 @@ describe("filterPending", () => {
       extra: { pageCount: 5 },
     });
 
-    const filtered = filterPending(progress, sections);
+    const filtered = filterPending(progress, sections, comicDir);
 
     expect(filtered).toHaveLength(1);
     expect(filtered[0].name).toBe("Vol 1");
@@ -142,8 +158,87 @@ describe("filterPending", () => {
     expect(filtered[0].chapters[0].title).toBe("Ch2");
   });
 
+  it("keeps non-done chapters when no files on disk", () => {
+    const sections = [section("Vol 1", [chapter("Ch1")])];
+
+    const progress = createProgress("Test", "https://example.com");
+
+    const filtered = filterPending(progress, sections, comicDir);
+
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(1);
+  });
+
+  it("without overwrite, skips chapters that have files on disk", () => {
+    const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
+
+    makeChapterDir("Vol 1", "Ch1");
+
+    let progress = createProgress("Test", "https://example.com");
+    progress = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "pending",
+    });
+
+    const filtered = filterPending(progress, sections, comicDir, false);
+
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(1);
+    expect(filtered[0].chapters[0].title).toBe("Ch2");
+  });
+
+  it("with overwrite, includes non-done chapters even when files exist on disk", () => {
+    const sections = [section("Vol 1", [chapter("Ch1")])];
+
+    makeChapterDir("Vol 1", "Ch1");
+
+    let progress = createProgress("Test", "https://example.com");
+    progress = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "pending",
+    });
+
+    const filtered = filterPending(progress, sections, comicDir, true);
+
+    expect(filtered).toHaveLength(1);
+  });
+
+  it("with overwrite, still skips done chapters", () => {
+    const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
+
+    makeChapterDir("Vol 1", "Ch1");
+    makeChapterDir("Vol 1", "Ch2");
+
+    let progress = createProgress("Test", "https://example.com");
+    progress = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "done",
+      extra: { pageCount: 10 },
+    });
+    progress = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch2",
+      status: "pending",
+    });
+
+    const filtered = filterPending(progress, sections, comicDir, true);
+
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(1);
+    expect(filtered[0].chapters[0].title).toBe("Ch2");
+  });
+
   it("removes empty sections after filtering", () => {
     const sections = [section("Vol 1", [chapter("Ch1")])];
+
+    makeChapterDir("Vol 1", "Ch1");
 
     let progress = createProgress("Test", "https://example.com");
     progress = updateChapterProgress({
@@ -154,7 +249,7 @@ describe("filterPending", () => {
       extra: { pageCount: 10 },
     });
 
-    const filtered = filterPending(progress, sections);
+    const filtered = filterPending(progress, sections, comicDir);
     expect(filtered).toEqual([]);
   });
 
@@ -170,14 +265,14 @@ describe("filterPending", () => {
       extra: { error: "timeout" },
     });
 
-    const filtered = filterPending(updated, sections);
+    const filtered = filterPending(updated, sections, comicDir);
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(1);
   });
 
   it("returns all sections when progress is null", () => {
     const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
-    const filtered = filterPending(null, sections);
+    const filtered = filterPending(null, sections, comicDir);
     expect(filtered).toEqual(sections);
   });
 });
