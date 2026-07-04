@@ -66,10 +66,24 @@ export async function collectImageUrls(page: PlaywrightPage, pageCount: number):
 
   for (let i = 1; i < pageCount; i++) {
     const prevUrl = currentUrl;
-    const nextBtn = await page.$("#next");
-    if (!nextBtn) break;
+    try {
+      await page.waitForSelector("#next", {
+        state: "visible",
+        timeout: config.nextBtnTimeout,
+      });
+    } catch {
+      break;
+    }
 
-    await nextBtn.click();
+    await retry(
+      async () => {
+        await page.locator("#next").click();
+      },
+      {
+        retries: 2,
+        delay: (_attempt) => config.retryBackoffBase,
+      },
+    );
     await page.waitForFunction(
       (prev) => {
         const img = document.querySelector("#mangaFile") as HTMLImageElement | null;
