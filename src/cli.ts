@@ -1,6 +1,11 @@
+import { createRequire } from "node:module";
 import { join } from "node:path";
 import { intro, isCancel, outro, spinner } from "@clack/prompts";
 import { defineCommand } from "citty";
+
+const require = createRequire(import.meta.url);
+const pkg = require("../package.json");
+
 import type { Browser } from "playwright";
 import { chromium } from "playwright";
 import { createBrowserContext } from "./browser.js";
@@ -294,7 +299,7 @@ async function runInteractive(resume: boolean, overwrite: boolean, dryRun: boole
 export const command = defineCommand({
   meta: {
     name: "manhuagui-cli",
-    version: "1.0.0",
+    version: pkg.version,
     description: "漫画柜 (manhuagui.com) 漫画下载工具 / CLI tool for downloading manhua",
   },
   args: {
