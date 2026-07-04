@@ -128,8 +128,9 @@ async function downloadImage(opts: {
       },
     );
     return result;
-  } catch {
-    logger.warn(`Failed to download after ${cfg.retryCount} retries: ${url}`);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    logger.warn(`Failed to download after ${cfg.retryCount} retries: ${url} (${reason})`);
     return { ok: false, bytes: 0, durationMs: 0 };
   }
 }

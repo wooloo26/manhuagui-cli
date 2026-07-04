@@ -146,6 +146,18 @@ export class DownloadUI {
     const elapsedTotal = (Date.now() - this.overallStart) / 1000;
     const elapsed = formatDurationSeconds(elapsedTotal);
 
+    const overallLine = this.buildOverallLine(elapsed, overallEta);
+    const barLine = this.buildBarLine();
+    const detailLine = this.buildDetailLine();
+
+    const output = `${overallLine}\n${barLine}\n${detailLine}`;
+    if (output !== this.lastOutput) {
+      logUpdate(output);
+      this.lastOutput = output;
+    }
+  }
+
+  private buildOverallLine(elapsed: string, overallEta: string): string {
     const chInfo = `${chalk.cyan(String(this.completedChapters))}/${chalk.cyan(String(this.totalChapters))} ch`;
     const elapsedStr = chalk.gray(`${elapsed} elapsed`);
     const etaStr = chalk.blue(overallEta !== "--" ? `~ ${overallEta}` : "--");
@@ -161,64 +173,67 @@ export class DownloadUI {
     if (this.failedCount > 0) {
       overallLine += `  ${chalk.red(`(${this.failedCount} failed)`)}`;
     }
+    return overallLine;
+  }
 
+  private buildBarLine(): string {
     const bar = buildBar(this.chapterPageDone, this.chapterPageTotal);
     const pct =
       this.chapterPageTotal > 0
         ? Math.round((this.chapterPageDone / this.chapterPageTotal) * 100)
         : 0;
-    const barLine = ` [${bar}] ${chalk.bold.white(String(pct).padStart(3))}%`;
+    return ` [${bar}] ${chalk.bold.white(String(pct).padStart(3))}%`;
+  }
 
+  private buildDetailLine(): string {
+    const delayLine = this.buildDelayLine();
+    if (delayLine !== null) return delayLine;
+
+    const chLabel = `Ch.${String(this.chapterNum).padStart(this.numWidth, " ")}`;
+    const secInfo = chalk.magenta(this.sectionName || "--");
+
+    if (this.chapterPageTotal <= 0) {
+      const pgInfo = `${chalk.white("0")}/${chalk.white("?")} pg`;
+      return ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${chalk.gray("loading page...")}`;
+    }
+
+    if (this.chapterPageDone <= 0) {
+      const pgInfo = `${chalk.white("0")}/${chalk.white(String(this.chapterPageTotal))} pg`;
+      return ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${chalk.gray("collecting urls...")}`;
+    }
+
+    const pgInfo = `${chalk.white(String(this.chapterPageDone))}/${chalk.white(String(this.chapterPageTotal))} pg`;
     const elapsedChapter = (Date.now() - this.chapterStart) / 1000;
     const speed = formatSpeed(this.chapterBytes / Math.max(elapsedChapter, 0.5));
-    let chEta: string;
-    let chEtaDone = false;
+    const speedStr = chalk.green(speed);
+
+    const { text: chEta, done: chEtaDone } = this.computeChapterEta(elapsedChapter);
+    const chEtaStr = chEtaDone ? chalk.green(chEta) : chalk.yellow(chEta);
+    return ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${speedStr}${SEP}${chEtaStr}`;
+  }
+
+  private buildDelayLine(): string | null {
+    if (this.delayEnd <= 0) return null;
+    const remaining = Math.max(0, Math.ceil((this.delayEnd - Date.now()) / 1000));
+    if (remaining > 0) {
+      return chalk.yellow(`   ${remaining}s until next chapter ...`);
+    }
+    this.delayEnd = 0;
+    return null;
+  }
+
+  private computeChapterEta(elapsedChapter: number): { text: string; done: boolean } {
     if (this.chapterPageTotal > 0 && this.chapterPageDone >= this.chapterPageTotal) {
-      chEta = "done";
-      chEtaDone = true;
-    } else if (this.chapterPageTotal > 0 && this.chapterPageDone > 0) {
-      chEta = `~ ${formatDurationSeconds(
-        ((this.chapterPageTotal - this.chapterPageDone) / this.chapterPageDone) * elapsedChapter,
-      )}`;
-    } else {
-      chEta = "--";
+      return { text: "done", done: true };
     }
-
-    let detailLine = "";
-    if (this.delayEnd > 0) {
-      const remaining = Math.max(0, Math.ceil((this.delayEnd - Date.now()) / 1000));
-      if (remaining > 0) {
-        detailLine = chalk.yellow(`   ${remaining}s until next chapter ...`);
-      } else {
-        this.delayEnd = 0;
-      }
+    if (this.chapterPageTotal > 0 && this.chapterPageDone > 0) {
+      return {
+        text: `~ ${formatDurationSeconds(
+          ((this.chapterPageTotal - this.chapterPageDone) / this.chapterPageDone) * elapsedChapter,
+        )}`,
+        done: false,
+      };
     }
-
-    if (!detailLine) {
-      const chLabel = `Ch.${String(this.chapterNum).padStart(this.numWidth, " ")}`;
-
-      if (this.chapterPageTotal <= 0) {
-        const pgInfo = `${chalk.white("0")}/${chalk.white("?")} pg`;
-        const secInfo = chalk.magenta(this.sectionName || "--");
-        detailLine = ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${chalk.gray("loading page...")}`;
-      } else if (this.chapterPageDone <= 0) {
-        const pgInfo = `${chalk.white("0")}/${chalk.white(String(this.chapterPageTotal))} pg`;
-        const secInfo = chalk.magenta(this.sectionName || "--");
-        detailLine = ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${chalk.gray("collecting urls...")}`;
-      } else {
-        const pgInfo = `${chalk.white(String(this.chapterPageDone))}/${chalk.white(String(this.chapterPageTotal))} pg`;
-        const secInfo = chalk.magenta(this.sectionName || "--");
-        const speedStr = chalk.green(speed);
-        const chEtaStr = chEtaDone ? chalk.green(chEta) : chalk.yellow(chEta);
-        detailLine = ` ${chLabel}  ${pgInfo}${SEP}${secInfo}${SEP}${speedStr}${SEP}${chEtaStr}`;
-      }
-    }
-
-    const output = `${overallLine}\n${barLine}\n${detailLine}`;
-
-    if (output !== this.lastOutput) {
-      logUpdate(output);
-      this.lastOutput = output;
-    }
+    return { text: "--", done: false };
   }
 }
