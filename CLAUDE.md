@@ -1,6 +1,6 @@
 # manhuagui-cli
 
-A CLI tool for downloading manhua (comics) from manhuagui.com. Supports both interactive mode and direct CLI arguments.
+A CLI tool for downloading comics from manhuagui.com. Supports both interactive mode and direct CLI arguments.
 
 ## Tech Stack
 
