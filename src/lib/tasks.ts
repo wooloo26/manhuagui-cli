@@ -152,7 +152,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
                 comicDir,
                 progress,
                 key,
-                status: "failed",
+                status: "pending",
                 extra: { urlsHash: h },
               });
             },

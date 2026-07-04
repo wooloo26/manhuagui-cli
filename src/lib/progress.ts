@@ -5,7 +5,7 @@ import type { Section } from "./types.js";
 import { atomicSaveJSON } from "./utils.js";
 
 export interface ChapterProgress {
-  status: "done" | "failed";
+  status: "done" | "failed" | "pending";
   pageCount?: number;
   urlsHash?: string;
   error?: string;
@@ -42,12 +42,12 @@ export function updateChapterProgress(opts: {
   comicDir: string;
   progress: ProgressData;
   key: string;
-  status: "done" | "failed";
+  status: "done" | "failed" | "pending";
   extra?: { pageCount?: number; urlsHash?: string; error?: string };
 }): void {
   const prevUrlsHash = opts.progress.chapters[opts.key]?.urlsHash;
   const entry: ChapterProgress = { status: opts.status, ...opts.extra };
-  if (prevUrlsHash && !entry.urlsHash) {
+  if (opts.status !== "done" && prevUrlsHash && !entry.urlsHash) {
     entry.urlsHash = prevUrlsHash;
   }
   opts.progress.chapters[opts.key] = entry;
