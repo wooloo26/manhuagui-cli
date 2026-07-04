@@ -76,18 +76,14 @@ refactor: extract CDN rotation logic into separate module
 src/
 ├── index.ts          # Entry point
 ├── cli.ts            # Command orchestration (interactive/direct mode)
-├── comic.ts          # Comic page parsing (chapter list)
-├── chapter.ts        # Chapter image extraction & download
-├── tasks.ts          # Download pipeline (section/chapter iteration)
-├── download.ts       # CDN host rotation download
-├── browser.ts        # Playwright browser context (anti-detection)
+├── comic.ts          # Comic page parsing & browser context (anti-detection)
+├── pipeline.ts       # Download pipeline (section/chapter iteration)
+├── download.ts       # CDN host rotation download & image extraction
 ├── config.ts         # Environment variables & defaults
 ├── types.ts          # Type definitions + zod schemas
 ├── utils.ts          # Utility functions
 ├── prompts.ts        # Interactive prompts
 ├── progress.ts       # Download progress & resume
 ├── ui.ts             # Terminal progress display (log-update + chalk)
-├── speed.ts          # Speed tracking & ETA estimation
-├── logger.ts         # Logging (consola)
-└── errors.ts         # Custom errors
+└── logger.ts         # Logging (consola)
 ```

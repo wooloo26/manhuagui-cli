@@ -37,6 +37,7 @@ manhuagui-cli
 - 实时进度：终端进度条显示下载速度、章节进度、整体进度及预计剩余时间
 - 预览模式 (`--dry-run`)：列出待下载章节而不实际下载
 - 断点续传：进度自动保存至 `progress.json`，中断后通过 `--resume` / `-r` 继续
+- 覆盖模式 (`--overwrite`)：续传时仅重新下载未完成的章节，已完成的章节始终保留
 - 清晰目录：`output/<漫画名>/<章节组>/<章节>/001.webp`
 
 ## 安装
@@ -89,6 +90,9 @@ manhuagui-cli https://www.manhuagui.com/comic/12345/ -o ./my-comics
 # 断点续传
 manhuagui-cli https://www.manhuagui.com/comic/12345/ --resume
 
+# 断点续传 + 覆盖未完成章节
+manhuagui-cli https://www.manhuagui.com/comic/12345/ --resume --overwrite
+
 # 预览模式（不实际下载）
 manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 ```
@@ -104,6 +108,7 @@ manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 | `--retry <n>`           | `3`        | 图片下载重试次数                              |
 | `--log-level <level>`   | `info`     | 日志级别：`debug` / `info` / `warn` / `error` |
 | `-r, --resume`          | —          | 断点续传模式                                  |
+| `-O, --overwrite`       | —          | 续传时覆盖未完成的章节                        |
 | `-d, --dry-run`         | —          | 预览模式（不实际下载）                        |
 | `-h, --help`            | —          | 显示帮助信息                                  |
 | `-v, --version`         | —          | 显示版本号                                    |

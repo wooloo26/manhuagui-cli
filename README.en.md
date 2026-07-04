@@ -37,6 +37,7 @@ manhuagui-cli
 - Real-time progress: terminal progress bars with speed, chapter/total progress, and ETA
 - Preview mode (`--dry-run`): list chapters to download without downloading
 - Resume support: auto-saves progress to `progress.json`, continue with `--resume` / `-r`
+- Overwrite mode (`--overwrite`): when resuming, only re-downloads unfinished chapters; completed chapters are always preserved
 - Clean output: `output/<comic>/<section>/<chapter>/001.webp`
 
 ## Installation
@@ -89,6 +90,9 @@ manhuagui-cli https://www.manhuagui.com/comic/12345/ -o ./my-comics
 # Resume download
 manhuagui-cli https://www.manhuagui.com/comic/12345/ --resume
 
+# Resume + overwrite unfinished chapters
+manhuagui-cli https://www.manhuagui.com/comic/12345/ --resume --overwrite
+
 # Preview mode (no actual download)
 manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 ```
@@ -104,6 +108,7 @@ manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 | `--retry <n>`           | `3`        | Image download retry count                     |
 | `--log-level <level>`   | `info`     | Log level: `debug` / `info` / `warn` / `error` |
 | `-r, --resume`          | —          | Resume mode                                    |
+| `-O, --overwrite`       | —          | Overwrite unfinished chapters when resuming    |
 | `-d, --dry-run`         | —          | Preview mode (no download)                     |
 | `-h, --help`            | —          | Show help                                      |
 | `-v, --version`         | —          | Show version                                   |
