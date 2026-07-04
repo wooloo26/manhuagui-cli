@@ -169,7 +169,7 @@ describe("filterPending", () => {
     expect(filtered[0].chapters).toHaveLength(1);
   });
 
-  it("without overwrite, skips chapters that have files on disk (no progress entry)", () => {
+  it("keeps chapters with files on disk when there is no progress entry", () => {
     const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
 
     makeChapterDir("Vol 1", "Ch1");
@@ -179,8 +179,7 @@ describe("filterPending", () => {
     const filtered = filterPending(progress, sections, comicDir, false);
 
     expect(filtered).toHaveLength(1);
-    expect(filtered[0].chapters).toHaveLength(1);
-    expect(filtered[0].chapters[0].title).toBe("Ch2");
+    expect(filtered[0].chapters).toHaveLength(2);
   });
 
   it("without overwrite, does not skip pending chapters even when files exist on disk", () => {
@@ -255,7 +254,7 @@ describe("filterPending", () => {
     expect(filtered).toHaveLength(1);
   });
 
-  it("with overwrite, still skips done chapters", () => {
+  it("with overwrite, includes done chapters for re-download", () => {
     const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
 
     makeChapterDir("Vol 1", "Ch1");
@@ -279,8 +278,8 @@ describe("filterPending", () => {
     const filtered = filterPending(progress, sections, comicDir, true);
 
     expect(filtered).toHaveLength(1);
-    expect(filtered[0].chapters).toHaveLength(1);
-    expect(filtered[0].chapters[0].title).toBe("Ch2");
+    expect(filtered[0].chapters).toHaveLength(2);
+    expect(filtered[0].chapters.map((c) => c.title).sort()).toEqual(["Ch1", "Ch2"]);
   });
 
   it("removes empty sections after filtering", () => {
@@ -316,6 +315,83 @@ describe("filterPending", () => {
     const filtered = filterPending(updated, sections, comicDir);
     expect(filtered).toHaveLength(1);
     expect(filtered[0].chapters).toHaveLength(1);
+  });
+
+  it("keeps failed chapter even when partial files exist on disk", () => {
+    const sections = [section("Vol 1", [chapter("Ch1")])];
+
+    makeChapterDir("Vol 1", "Ch1");
+
+    const progress = createProgress("Test", "https://example.com");
+    const updated = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "failed",
+      extra: { error: "timeout" },
+    });
+
+    const filtered = filterPending(updated, sections, comicDir, false);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(1);
+    expect(filtered[0].chapters[0].title).toBe("Ch1");
+  });
+
+  it("keeps pending chapter even when partial files exist on disk", () => {
+    const sections = [section("Vol 1", [chapter("Ch1")])];
+
+    makeChapterDir("Vol 1", "Ch1");
+
+    const progress = createProgress("Test", "https://example.com");
+    const updated = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "pending",
+    });
+
+    const filtered = filterPending(updated, sections, comicDir, false);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(1);
+    expect(filtered[0].chapters[0].title).toBe("Ch1");
+  });
+
+  it("re-downloads done chapter when files were deleted by user", () => {
+    const sections = [section("Vol 1", [chapter("Ch1")])];
+
+    const progress = createProgress("Test", "https://example.com");
+    const updated = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "done",
+      extra: { pageCount: 10 },
+    });
+
+    const filtered = filterPending(updated, sections, comicDir, false);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(1);
+    expect(filtered[0].chapters[0].title).toBe("Ch1");
+  });
+
+  it("skips done chapter when files exist and no overwrite", () => {
+    const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
+
+    makeChapterDir("Vol 1", "Ch1");
+
+    const progress = createProgress("Test", "https://example.com");
+    const updated = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "done",
+      extra: { pageCount: 10 },
+    });
+
+    const filtered = filterPending(updated, sections, comicDir, false);
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(1);
+    expect(filtered[0].chapters[0].title).toBe("Ch2");
   });
 
   it("returns all sections when progress is null", () => {

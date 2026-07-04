@@ -104,8 +104,7 @@ export function filterPending(
       ...s,
       chapters: s.chapters.filter((c) => {
         const p = progress?.chapters[chapterKey(s.name, c.title)];
-        if (p?.status === "done") return false;
-        if (!overwrite && p?.status !== "pending" && isChapterDownloaded(comicDir, s.name, c.title))
+        if (p?.status === "done" && !overwrite && isChapterDownloaded(comicDir, s.name, c.title))
           return false;
         return true;
       }),

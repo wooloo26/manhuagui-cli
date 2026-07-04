@@ -171,17 +171,12 @@ describe("getSubPageUrls", () => {
   });
 });
 
-function createMockElementHandle(clickFn?: () => Promise<void>) {
-  return {
-    click: clickFn ?? vi.fn().mockResolvedValue(undefined),
-  };
-}
-
 function mockCollectPage(options: {
   pageUrl?: string;
   imageUrls: string[];
   nextExists?: boolean;
   urlChanges?: boolean;
+  clickFails?: number;
 }): Page {
   const baseUrl = options.pageUrl ?? "https://www.manhuagui.com/comic/123/456.html";
   const urlSpy = vi.fn().mockReturnValue(baseUrl);
@@ -197,17 +192,29 @@ function mockCollectPage(options: {
     evalSpy.mockResolvedValueOnce(url);
   }
 
-  const $spy = vi.fn();
+  const waitForSelectorSpy = vi.fn();
   if (options.nextExists !== false) {
-    $spy.mockResolvedValue(createMockElementHandle(vi.fn().mockResolvedValue(undefined)));
+    waitForSelectorSpy.mockResolvedValue(undefined);
   } else {
-    $spy.mockResolvedValue(null);
+    waitForSelectorSpy.mockRejectedValue(new Error("timeout"));
   }
+
+  let clickFailures = options.clickFails ?? 0;
+  const clickSpy = vi.fn().mockImplementation(async () => {
+    if (clickFailures > 0) {
+      clickFailures--;
+      throw new Error("click failed");
+    }
+    return undefined;
+  });
+
+  const locatorSpy = vi.fn().mockReturnValue({ click: clickSpy });
 
   return {
     url: urlSpy,
     $eval: evalSpy,
-    $: $spy,
+    waitForSelector: waitForSelectorSpy,
+    locator: locatorSpy,
     waitForFunction: vi.fn().mockResolvedValue(undefined),
     waitForTimeout: vi.fn().mockResolvedValue(undefined),
   } as unknown as Page;
@@ -272,6 +279,21 @@ describe("collectImageUrls", () => {
 
     const result = await collectImageUrls(page, 10);
     expect(result).toEqual(urls);
+  });
+
+  it("retries click on #next when first attempt fails", async () => {
+    const page = mockCollectPage({
+      imageUrls: [
+        "https://img.example.com/001.webp",
+        "https://img.example.com/002.webp",
+      ],
+      clickFails: 1,
+    });
+
+    const urls = await collectImageUrls(page, 2);
+    expect(urls).toHaveLength(2);
+    expect(urls[0]).toBe("https://img.example.com/001.webp");
+    expect(urls[1]).toBe("https://img.example.com/002.webp");
   });
 });
 

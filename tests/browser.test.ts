@@ -77,11 +77,17 @@ describe("handleAdultCheck", () => {
     expect(page.waitForTimeout).toHaveBeenCalled();
   });
 
-  it("does not wait when waitFor is not provided", async () => {
+  it("waits for #checkAdult visibility when button is present", async () => {
     const page = mockPage({ hasCheckAdult: true });
     await handleAdultCheck(page);
 
-    expect(page.waitForSelector).not.toHaveBeenCalled();
+    expect(page.waitForSelector).toHaveBeenCalledWith("#checkAdult", expect.any(Object));
+  });
+
+  it("does not wait when waitFor is not provided (aside from visibility check)", async () => {
+    const page = mockPage({ hasCheckAdult: true });
+    await handleAdultCheck(page);
+
     expect(page.waitForTimeout).not.toHaveBeenCalled();
   });
 
