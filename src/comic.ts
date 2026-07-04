@@ -44,8 +44,8 @@ export async function handleAdultCheck(
       await checkAdult.click();
     },
     {
-      retries: 2,
-      delay: (_attempt) => cfg.retryBackoffBase,
+      retries: cfg.retryCount,
+      delay: () => cfg.retryBackoffBase,
     },
   ).catch(() => {
     throw new Error("Failed to dismiss adult check after retries");

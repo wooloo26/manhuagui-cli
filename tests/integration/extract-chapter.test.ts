@@ -60,7 +60,6 @@ describe("processChapter integration", () => {
       downloadDelay: 0,
       retryCount: 3,
       retryBackoffBase: 1,
-      imageLoadDelay: 0,
     });
     config.pageLoadTimeout = 10000;
     config.nextPageTimeout = 5000;

@@ -98,7 +98,7 @@ async function downloadImage(opts: {
         return { ok: true as const, bytes: buffer.length, durationMs: Date.now() - started };
       },
       {
-        retries: cfg.retryCount - 1,
+        retries: cfg.retryCount,
         delay: (attempt) => cfg.retryBackoffBase * (attempt + 1),
       },
     );
@@ -252,22 +252,18 @@ export async function collectImageUrls(
 
   for (let i = 1; i < pageCount; i++) {
     const prevUrl = currentUrl;
-    try {
-      await page.waitForSelector("#next", {
-        state: "visible",
-        timeout: cfg.nextBtnTimeout,
-      });
-    } catch {
-      break;
-    }
+    await page.waitForSelector("#next", {
+      state: "visible",
+      timeout: cfg.nextBtnTimeout,
+    });
 
     await retry(
       async () => {
         await page.locator("#next").click();
       },
       {
-        retries: 2,
-        delay: (_attempt) => cfg.retryBackoffBase,
+        retries: cfg.retryCount,
+        delay: () => cfg.retryBackoffBase,
       },
     );
     await page.waitForFunction(
@@ -278,8 +274,6 @@ export async function collectImageUrls(
       prevUrl,
       { timeout: cfg.nextPageTimeout },
     );
-
-    await page.waitForTimeout(cfg.imageLoadDelay);
 
     if (page.url().split("#")[0] !== pagePath) break;
 

@@ -16,7 +16,6 @@ const ConfigSchema = z.object({
   chapterDelayMax: z.number().int().nonnegative(),
   retryCount: z.number().int().nonnegative(),
   retryBackoffBase: z.number().int().nonnegative(),
-  imageLoadDelay: z.number().int().nonnegative(),
   logLevel: z.enum(["debug", "info", "warn", "error"]),
   userAgents: z.array(z.string().min(1)).min(1),
   padMinLength: z.number().int().positive(),
@@ -45,7 +44,6 @@ export type UserConfigOverrides = Partial<
     | "chapterDelayMax"
     | "retryCount"
     | "retryBackoffBase"
-    | "imageLoadDelay"
     | "logLevel"
     | "userAgents"
   >
@@ -66,8 +64,7 @@ const DEFAULTS = Object.freeze({
   chapterDelayMin: 3000,
   chapterDelayMax: 6000,
   retryCount: 3,
-  retryBackoffBase: 1000,
-  imageLoadDelay: 200,
+  retryBackoffBase: 500,
   logLevel: "info",
   userAgents: BUILTIN_USER_AGENTS,
   padMinLength: 3,
@@ -104,7 +101,6 @@ function loadFromEnv(): UserConfigOverrides {
   if (process.env.RETRY_COUNT) overrides.retryCount = Number(process.env.RETRY_COUNT);
   if (process.env.RETRY_BACKOFF_BASE)
     overrides.retryBackoffBase = Number(process.env.RETRY_BACKOFF_BASE);
-  if (process.env.IMAGE_LOAD_DELAY) overrides.imageLoadDelay = Number(process.env.IMAGE_LOAD_DELAY);
   if (process.env.LOG_LEVEL) {
     const level = process.env.LOG_LEVEL.toLowerCase();
     if (["debug", "info", "warn", "error"].includes(level))

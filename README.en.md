@@ -129,8 +129,7 @@ Copy `.env.example` to `.env` and modify as needed, or set system environment va
 | `CHAPTER_DELAY_MIN`  | `3000`     | Minimum delay between chapters (ms)               |
 | `CHAPTER_DELAY_MAX`  | `6000`     | Maximum delay between chapters (ms)               |
 | `RETRY_COUNT`        | `3`        | Image download retry count                        |
-| `RETRY_BACKOFF_BASE` | `1000`     | Retry backoff base (ms), Nth retry waits N * base |
-| `IMAGE_LOAD_DELAY`   | `200`      | Delay after page flip for image load (ms)         |
+| `RETRY_BACKOFF_BASE` | `500`      | Retry backoff base (ms), Nth retry waits N * base |
 | `LOG_LEVEL`          | `info`     | Log level: `debug` / `info` / `warn` / `error`    |
 | `USER_AGENTS`        | —          | Custom User-Agent list (one per line)             |
 

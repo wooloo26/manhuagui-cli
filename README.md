@@ -129,8 +129,7 @@ manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 | `CHAPTER_DELAY_MIN`  | `3000`     | 章节间最小延迟（毫秒）                         |
 | `CHAPTER_DELAY_MAX`  | `6000`     | 章节间最大延迟（毫秒）                         |
 | `RETRY_COUNT`        | `3`        | 图片下载重试次数                               |
-| `RETRY_BACKOFF_BASE` | `1000`     | 重试退避基值（毫秒），第 N 次重试等待 N * base |
-| `IMAGE_LOAD_DELAY`   | `200`      | 翻页后等待图片加载（毫秒）                     |
+| `RETRY_BACKOFF_BASE` | `500`      | 重试退避基值（毫秒），第 N 次重试等待 N * base |
 | `LOG_LEVEL`          | `info`     | 日志级别：`debug` / `info` / `warn` / `error`  |
 | `USER_AGENTS`        | —          | 自定义 User-Agent 列表（每行一个）             |
 
