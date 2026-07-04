@@ -18,8 +18,6 @@
   <img src="demo.png" alt="screenshot">
 </p>
 
----
-
 ## 快速开始
 
 ```bash
@@ -27,8 +25,6 @@ npm install -g manhuagui-cli
 
 manhuagui-cli
 ```
-
----
 
 ## 功能特性
 
@@ -42,8 +38,6 @@ manhuagui-cli
 - 预览模式 (`--dry-run`)：列出待下载章节而不实际下载
 - 断点续传：进度自动保存至 `progress.json`，中断后通过 `--resume` / `-r` 继续
 - 清晰目录：`output/<漫画名>/<章节组>/<章节>/001.webp`
-
----
 
 ## 安装
 
@@ -64,8 +58,6 @@ pnpm install
 pnpm build
 pnpm link --global
 ```
-
----
 
 ## 使用方法
 
@@ -116,8 +108,6 @@ manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 | `-h, --help`            | —          | 显示帮助信息                                  |
 | `-v, --version`         | —          | 显示版本号                                    |
 
----
-
 ## 配置
 
 除 CLI 参数外，还可通过环境变量调整行为。
@@ -139,8 +129,6 @@ manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 | `LOG_LEVEL`          | `info`     | 日志级别：`debug` / `info` / `warn` / `error`  |
 | `USER_AGENTS`        | —          | 自定义 User-Agent 列表（每行一个）             |
 
----
-
 ## 输出目录结构
 
 ```text
@@ -154,33 +142,13 @@ output/
             └── ...
 ```
 
----
-
-## 开发
-
-| 命令             | 说明                            |
-| ---------------- | ------------------------------- |
-| `pnpm install`   | 安装依赖                        |
-| `pnpm dev`       | 开发模式（直接运行 TypeScript） |
-| `pnpm build`     | 编译 TypeScript                 |
-| `pnpm typecheck` | 类型检查                        |
-| `pnpm test`      | 运行测试                        |
-| `pnpm check`     | Lint + 格式化检查               |
-| `pnpm format`    | 自动格式化                      |
-
----
-
 ## 变更日志
 
 详见 [CHANGELOG.md](./CHANGELOG.md)。
 
----
-
 ## 许可协议
 
 [MIT](./LICENSE)
-
----
 
 ## 免责声明
 

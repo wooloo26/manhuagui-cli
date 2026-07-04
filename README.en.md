@@ -18,8 +18,6 @@
   <img src="demo.png" alt="screenshot">
 </p>
 
----
-
 ## Quick Start
 
 ```bash
@@ -27,8 +25,6 @@ npm install -g manhuagui-cli
 
 manhuagui-cli
 ```
-
----
 
 ## Features
 
@@ -42,8 +38,6 @@ manhuagui-cli
 - Preview mode (`--dry-run`): list chapters to download without downloading
 - Resume support: auto-saves progress to `progress.json`, continue with `--resume` / `-r`
 - Clean output: `output/<comic>/<section>/<chapter>/001.webp`
-
----
 
 ## Installation
 
@@ -64,8 +58,6 @@ pnpm install
 pnpm build
 pnpm link --global
 ```
-
----
 
 ## Usage
 
@@ -116,8 +108,6 @@ manhuagui-cli https://www.manhuagui.com/comic/12345/ --dry-run
 | `-h, --help`            | —          | Show help                                      |
 | `-v, --version`         | —          | Show version                                   |
 
----
-
 ## Configuration
 
 In addition to CLI arguments, behavior can be adjusted via environment variables.
@@ -139,8 +129,6 @@ Copy `.env.example` to `.env` and modify as needed, or set system environment va
 | `LOG_LEVEL`          | `info`     | Log level: `debug` / `info` / `warn` / `error`    |
 | `USER_AGENTS`        | —          | Custom User-Agent list (one per line)             |
 
----
-
 ## Output Structure
 
 ```text
@@ -154,33 +142,13 @@ output/
             └── ...
 ```
 
----
-
-## Development
-
-| Command          | Description               |
-| ---------------- | ------------------------- |
-| `pnpm install`   | Install dependencies      |
-| `pnpm dev`       | Dev mode (run TypeScript) |
-| `pnpm build`     | Compile TypeScript        |
-| `pnpm typecheck` | Type check                |
-| `pnpm test`      | Run tests                 |
-| `pnpm check`     | Lint + format check       |
-| `pnpm format`    | Auto format               |
-
----
-
 ## Changelog
 
 See [CHANGELOG.md](./CHANGELOG.md).
 
----
-
 ## License
 
 [MIT](./LICENSE)
-
----
 
 ## Disclaimer
 
