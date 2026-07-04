@@ -5,7 +5,7 @@ import { logger } from "./logger.js";
 try {
   process.loadEnvFile?.();
 } catch {
-  logger.warn("Failed to load .env file");
+  logger.debug("Failed to load .env file");
 }
 
 const ConfigSchema = z.object({
