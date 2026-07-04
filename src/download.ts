@@ -252,10 +252,14 @@ export async function collectImageUrls(
 
   for (let i = 1; i < pageCount; i++) {
     const prevUrl = currentUrl;
-    await page.waitForSelector("#next", {
-      state: "visible",
-      timeout: cfg.nextBtnTimeout,
-    });
+    try {
+      await page.waitForSelector("#next", {
+        state: "visible",
+        timeout: cfg.nextBtnTimeout,
+      });
+    } catch {
+      break;
+    }
 
     await retry(
       async () => {
