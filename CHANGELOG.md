@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.3](https://github.com/wooloo26/manhuagui-cli/compare/v1.0.2...v1.0.3) (2026-07-04)
+
+### Features
+
+* **download:** add overwrite mode, CDN hash detection, and per-image resume ([1c75651](https://github.com/wooloo26/manhuagui-cli/commit/1c7565115bd4235de88ae03d8a30f4e9bdcad912))
+* **progress:** add pending status to chapter progress tracking ([4a46c36](https://github.com/wooloo26/manhuagui-cli/commit/4a46c36170564a3a5f90c632bb07277c616efe5c))
+
 ## [1.0.2](https://github.com/wooloo26/manhuagui-cli/compare/v1.0.1...v1.0.2) (2026-07-03)
 
 ### Features
