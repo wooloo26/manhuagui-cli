@@ -356,7 +356,7 @@ export const command = defineCommand({
     if (args.concurrency) cliOverrides.imageConcurrency = Number(args.concurrency);
     if (args.retry) cliOverrides.retryCount = Number(args.retry);
     if (args["log-level"] && ["debug", "info", "warn", "error"].includes(args["log-level"])) {
-      cliOverrides.logLevel = args["log-level"];
+      cliOverrides.logLevel = args["log-level"] as UserConfigOverrides["logLevel"];
     }
     initConfig(cliOverrides);
     try {

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { sum } from "es-toolkit";
 import type { Browser } from "playwright";
 import { extractChapterImages } from "./chapter.js";
 import { config } from "./config.js";
@@ -15,7 +16,7 @@ import {
 import { SpeedTracker } from "./speed.js";
 import type { Chapter, Section } from "./types.js";
 import { DownloadUI } from "./ui.js";
-import { randInt, sleep, slugify } from "./utils.js";
+import { randomInt, sleep, slugify } from "./utils.js";
 
 export interface PipelineResult {
   collected: Record<string, { urls: string[]; chapterUrl: string }>;
@@ -25,11 +26,7 @@ export interface PipelineResult {
 }
 
 function countCompleted(progress: ProgressData): number {
-  let count = 0;
-  for (const entry of Object.values(progress.chapters)) {
-    if (entry.status === "done") count++;
-  }
-  return count;
+  return sum(Object.values(progress.chapters).map((entry) => (entry.status === "done" ? 1 : 0)));
 }
 
 async function processChapter(opts: {
@@ -102,13 +99,13 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
   const collected: Record<string, { urls: string[]; chapterUrl: string }> = {};
   const errors: string[] = [];
   const comicDir = join(config.outputBase, slugify(comicTitle));
-  const progress = resume
+  let progress = resume
     ? (loadProgress(comicDir) ?? createProgress(comicTitle, comicUrl))
     : createProgress(comicTitle, comicUrl);
   saveProgress(comicDir, progress);
 
   const completedFromResume = countCompleted(progress);
-  const pendingChapters = sections.reduce((sum, s) => sum + s.chapters.length, 0);
+  const pendingChapters = sum(sections.map((s) => s.chapters.length));
   const totalChapters = completedFromResume + pendingChapters;
   const initialPagesDone = resume ? countCompletedPages(progress) : 0;
   const ui = new DownloadUI(
@@ -148,7 +145,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
             overwrite,
             storedUrlsHash,
             onHash: (h) => {
-              updateChapterProgress({
+              progress = updateChapterProgress({
                 comicDir,
                 progress,
                 key,
@@ -166,7 +163,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
 
           if (r) {
             collected[r.title] = { urls: r.urls, chapterUrl: r.chapterUrl };
-            updateChapterProgress({
+            progress = updateChapterProgress({
               comicDir,
               progress,
               key,
@@ -176,7 +173,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
             ok++;
             ui.finishChapter(true);
           } else {
-            updateChapterProgress({
+            progress = updateChapterProgress({
               comicDir,
               progress,
               key,
@@ -189,7 +186,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
           errors.push(`${ch.title}: ${errMsg}`);
-          updateChapterProgress({
+          progress = updateChapterProgress({
             comicDir,
             progress,
             key,
@@ -202,7 +199,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
         }
 
         if (i < section.chapters.length - 1) {
-          const delayMs = randInt(config.chapterDelayMin, config.chapterDelayMax);
+          const delayMs = randomInt(config.chapterDelayMin, config.chapterDelayMax);
           ui.startDelay(delayMs);
           await sleep(delayMs);
         }

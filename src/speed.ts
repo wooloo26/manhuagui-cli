@@ -1,3 +1,4 @@
+import { sum } from "es-toolkit";
 import { config } from "./config.js";
 
 interface Sample {
@@ -28,19 +29,19 @@ export class SpeedTracker {
   }
 
   get bytesPerSecond(): number {
-    const totalBytes = this.samples.reduce((s, x) => s + x.bytes, 0);
-    const totalMs = this.samples.reduce((s, x) => s + x.durationMs, 0);
+    const totalBytes = sum(this.samples.map((x) => x.bytes));
+    const totalMs = sum(this.samples.map((x) => x.durationMs));
     return totalMs > 0 ? (totalBytes / totalMs) * 1000 : 0;
   }
 
   get avgBytesPerImage(): number {
     if (this.samples.length === 0) return 0;
-    return this.samples.reduce((s, x) => s + x.bytes, 0) / this.samples.length;
+    return sum(this.samples.map((x) => x.bytes)) / this.samples.length;
   }
 
   get avgChapterDurationMs(): number {
     if (this.chapterDurations.length === 0) return 0;
-    return this.chapterDurations.reduce((s, x) => s + x, 0) / this.chapterDurations.length;
+    return sum(this.chapterDurations) / this.chapterDurations.length;
   }
 
   get sampleCount(): number {

@@ -1,4 +1,6 @@
-import { logger, setLogLevel } from "./logger.js";
+import { sample } from "es-toolkit";
+import { z } from "zod";
+import { logger } from "./logger.js";
 
 try {
   process.loadEnvFile?.();
@@ -6,29 +8,31 @@ try {
   logger.warn("Failed to load .env file");
 }
 
-export interface Config {
-  outputBase: string;
-  imageConcurrency: number;
-  downloadDelay: number;
-  chapterDelayMin: number;
-  chapterDelayMax: number;
-  retryCount: number;
-  retryBackoffBase: number;
-  imageLoadDelay: number;
-  logLevel: string;
-  userAgents: string[];
-  padMinLength: number;
-  pageLoadTimeout: number;
-  chapterSelectorTimeout: number;
-  adultSelectorTimeout: number;
-  tabLoadTimeout: number;
-  adultClickSettleDelay: number;
-  nextPageTimeout: number;
-  viewportMinWidth: number;
-  viewportMaxWidth: number;
-  viewportMinHeight: number;
-  viewportMaxHeight: number;
-}
+const ConfigSchema = z.object({
+  outputBase: z.string(),
+  imageConcurrency: z.number().int().positive(),
+  downloadDelay: z.number().int().nonnegative(),
+  chapterDelayMin: z.number().int().nonnegative(),
+  chapterDelayMax: z.number().int().nonnegative(),
+  retryCount: z.number().int().nonnegative(),
+  retryBackoffBase: z.number().int().nonnegative(),
+  imageLoadDelay: z.number().int().nonnegative(),
+  logLevel: z.enum(["debug", "info", "warn", "error"]),
+  userAgents: z.array(z.string().min(1)).min(1),
+  padMinLength: z.number().int().positive(),
+  pageLoadTimeout: z.number().int().nonnegative(),
+  chapterSelectorTimeout: z.number().int().nonnegative(),
+  adultSelectorTimeout: z.number().int().nonnegative(),
+  tabLoadTimeout: z.number().int().nonnegative(),
+  adultClickSettleDelay: z.number().int().nonnegative(),
+  nextPageTimeout: z.number().int().nonnegative(),
+  viewportMinWidth: z.number().int().positive(),
+  viewportMaxWidth: z.number().int().positive(),
+  viewportMinHeight: z.number().int().positive(),
+  viewportMaxHeight: z.number().int().positive(),
+});
+
+export type Config = z.infer<typeof ConfigSchema>;
 
 export type UserConfigOverrides = Partial<
   Pick<
@@ -78,6 +82,13 @@ const DEFAULTS: Config = {
   viewportMaxHeight: 1000,
 };
 
+const LOG_LEVEL_MAP: Record<string, number> = {
+  error: 0,
+  warn: 1,
+  info: 3,
+  debug: 4,
+};
+
 function loadFromEnv(): UserConfigOverrides {
   const overrides: UserConfigOverrides = {};
   if (process.env.OUTPUT_BASE) overrides.outputBase = process.env.OUTPUT_BASE;
@@ -94,7 +105,8 @@ function loadFromEnv(): UserConfigOverrides {
   if (process.env.IMAGE_LOAD_DELAY) overrides.imageLoadDelay = Number(process.env.IMAGE_LOAD_DELAY);
   if (process.env.LOG_LEVEL) {
     const level = process.env.LOG_LEVEL.toLowerCase();
-    if (["debug", "info", "warn", "error"].includes(level)) overrides.logLevel = level;
+    if (["debug", "info", "warn", "error"].includes(level))
+      overrides.logLevel = level as UserConfigOverrides["logLevel"];
   }
   if (process.env.USER_AGENTS) {
     overrides.userAgents = process.env.USER_AGENTS.split("\n")
@@ -106,16 +118,17 @@ function loadFromEnv(): UserConfigOverrides {
 
 function buildConfig(overrides?: UserConfigOverrides): Config {
   const env = loadFromEnv();
-  return { ...DEFAULTS, ...env, ...overrides };
+  const merged = { ...DEFAULTS, ...env, ...overrides };
+  return ConfigSchema.parse(merged);
 }
 
 export let config: Config = buildConfig();
 
 export function initConfig(cliOverrides?: UserConfigOverrides): void {
   config = buildConfig(cliOverrides);
-  setLogLevel(config.logLevel as "debug" | "info" | "warn" | "error");
+  logger.level = LOG_LEVEL_MAP[config.logLevel] ?? 3;
 }
 
 export function pickUserAgent(): string {
-  return config.userAgents[Math.floor(Math.random() * config.userAgents.length)];
+  return sample(config.userAgents);
 }

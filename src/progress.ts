@@ -1,26 +1,31 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { produce } from "immer";
+import { z } from "zod";
 import { logger } from "./logger.js";
 import type { Section } from "./types.js";
 import { atomicSaveJSON } from "./utils.js";
 
-export interface ChapterProgress {
-  status: "done" | "failed" | "pending";
-  pageCount?: number;
-  urlsHash?: string;
-  error?: string;
-}
+const ChapterProgressSchema = z.object({
+  status: z.enum(["done", "failed", "pending"]),
+  pageCount: z.number().int().nonnegative().optional(),
+  urlsHash: z.string().optional(),
+  error: z.string().optional(),
+});
 
-export interface ProgressData {
-  comicTitle: string;
-  comicUrl: string;
-  chapters: Record<string, ChapterProgress>;
-}
+const ProgressDataSchema = z.object({
+  comicTitle: z.string(),
+  comicUrl: z.string(),
+  chapters: z.record(z.string(), ChapterProgressSchema),
+});
+
+export type ChapterProgress = z.infer<typeof ChapterProgressSchema>;
+export type ProgressData = z.infer<typeof ProgressDataSchema>;
 
 export function loadProgress(comicDir: string, warnOnError = false): ProgressData | null {
   try {
     const raw = readFileSync(join(comicDir, "progress.json"), "utf-8");
-    return JSON.parse(raw) as ProgressData;
+    return ProgressDataSchema.parse(JSON.parse(raw));
   } catch (err) {
     if (warnOnError) {
       const message = err instanceof Error ? err.message : String(err);
@@ -44,14 +49,17 @@ export function updateChapterProgress(opts: {
   key: string;
   status: "done" | "failed" | "pending";
   extra?: { pageCount?: number; urlsHash?: string; error?: string };
-}): void {
+}): ProgressData {
   const prevUrlsHash = opts.progress.chapters[opts.key]?.urlsHash;
-  const entry: ChapterProgress = { status: opts.status, ...opts.extra };
-  if (opts.status !== "done" && prevUrlsHash && !entry.urlsHash) {
-    entry.urlsHash = prevUrlsHash;
-  }
-  opts.progress.chapters[opts.key] = entry;
-  saveProgress(opts.comicDir, opts.progress);
+  const updated = produce(opts.progress, (draft) => {
+    const entry: ChapterProgress = { status: opts.status, ...opts.extra };
+    if (opts.status !== "done" && prevUrlsHash && !entry.urlsHash) {
+      entry.urlsHash = prevUrlsHash;
+    }
+    draft.chapters[opts.key] = entry;
+  });
+  saveProgress(opts.comicDir, updated);
+  return updated;
 }
 
 export function chapterKey(sectionName: string, chapterTitle: string): string {

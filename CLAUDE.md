@@ -11,6 +11,10 @@ A CLI tool for downloading comics from manhuagui.com. Supports both interactive 
 - **log-update** + **chalk** — Terminal progress bars with speed & ETA
 - **@clack/prompts** — Interactive prompts
 - **vitest** + **biome** — Testing & linting/formatting
+- **es-toolkit** — Functional utilities (`retry`, `chunk`, `sum`, `sample`, `randomInt`) replacing hand-rolled patterns
+- **immer** — Immutable state updates for progress data (`produce()` in `updateChapterProgress`)
+- **zod** — Runtime schema validation for parsed comic data, config, and progress files
+- **consola** — Structured logging (replaces custom logger)
 
 ## Commands
 
@@ -71,20 +75,19 @@ refactor: extract CDN rotation logic into separate module
 ```
 src/
 ├── index.ts          # Entry point
-└── lib/
-    ├── cli.ts        # Command orchestration (interactive/direct mode)
-    ├── comic.ts      # Comic page parsing (chapter list)
-    ├── chapter.ts    # Chapter image extraction & download
-    ├── tasks.ts      # Download pipeline (section/chapter iteration)
-    ├── download.ts   # CDN host rotation download
-    ├── browser.ts    # Playwright browser context (anti-detection)
-    ├── config.ts     # Environment variables & defaults
-    ├── types.ts      # Type definitions
-    ├── utils.ts      # Utility functions
-    ├── prompts.ts    # Interactive prompts
-    ├── progress.ts   # Download progress & resume
-    ├── ui.ts         # Terminal progress display (log-update + chalk)
-    ├── speed.ts      # Speed tracking & ETA estimation
-    ├── logger.ts     # Logging
-    └── errors.ts     # Custom errors
+├── cli.ts            # Command orchestration (interactive/direct mode)
+├── comic.ts          # Comic page parsing (chapter list)
+├── chapter.ts        # Chapter image extraction & download
+├── tasks.ts          # Download pipeline (section/chapter iteration)
+├── download.ts       # CDN host rotation download
+├── browser.ts        # Playwright browser context (anti-detection)
+├── config.ts         # Environment variables & defaults
+├── types.ts          # Type definitions + zod schemas
+├── utils.ts          # Utility functions
+├── prompts.ts        # Interactive prompts
+├── progress.ts       # Download progress & resume
+├── ui.ts             # Terminal progress display (log-update + chalk)
+├── speed.ts          # Speed tracking & ETA estimation
+├── logger.ts         # Logging (consola)
+└── errors.ts         # Custom errors
 ```

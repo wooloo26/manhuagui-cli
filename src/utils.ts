@@ -1,6 +1,12 @@
 import { createHash } from "node:crypto";
 import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { randomInt as _randomInt } from "es-toolkit";
+
+export function randomInt(min: number, max: number): number {
+  if (min === max) return min;
+  return _randomInt(min, max);
+}
 
 export function slugify(text: string): string {
   return text
@@ -13,12 +19,8 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export function randInt(min: number, max: number): number {
-  return Math.floor(Math.random() * (max - min + 1)) + min;
-}
-
 export async function humanDelay(min: number, max: number): Promise<void> {
-  await sleep(randInt(min, max));
+  await sleep(randomInt(min, max));
 }
 
 export function ensureDir(dir: string): void {

@@ -1,5 +1,6 @@
 import { existsSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { chunk, retry } from "es-toolkit";
 import type { Browser, BrowserContext, Page as PlaywrightPage, Response } from "playwright";
 import { createBrowserContext, handleAdultCheck } from "./browser.js";
 import { config } from "./config.js";
@@ -144,29 +145,34 @@ async function downloadImage(opts: {
 
   let downloadUrl = url;
 
-  for (let attempt = 0; attempt < config.retryCount; attempt++) {
-    try {
-      const started = Date.now();
-      const response = await dlPage.goto(downloadUrl, {
-        referer: chapterUrl,
-        waitUntil: "load",
-        timeout: config.pageLoadTimeout,
-      });
-      validateImageResponse(response);
-      const base64 = await fetchImageAsBase64(dlPage);
-      const buffer = Buffer.from(base64, "base64");
-      writeFileSync(filePath, buffer);
-      return { ok: true, bytes: buffer.length, durationMs: Date.now() - started };
-    } catch {
-      if (attempt < config.retryCount - 1) {
-        downloadUrl = rotateHost(downloadUrl);
-        await sleep(config.retryBackoffBase * (attempt + 1));
-      }
-    }
+  try {
+    const result = await retry(
+      async () => {
+        const started = Date.now();
+        const response = await dlPage.goto(downloadUrl, {
+          referer: chapterUrl,
+          waitUntil: "load",
+          timeout: config.pageLoadTimeout,
+        });
+        validateImageResponse(response);
+        const base64 = await fetchImageAsBase64(dlPage);
+        const buffer = Buffer.from(base64, "base64");
+        writeFileSync(filePath, buffer);
+        return { ok: true as const, bytes: buffer.length, durationMs: Date.now() - started };
+      },
+      {
+        retries: config.retryCount - 1,
+        delay: (attempt) => {
+          downloadUrl = rotateHost(downloadUrl);
+          return config.retryBackoffBase * (attempt + 1);
+        },
+      },
+    );
+    return result;
+  } catch {
+    logger.warn(`Failed to download after ${config.retryCount} retries: ${url}`);
+    return { ok: false, bytes: 0, durationMs: 0 };
   }
-
-  logger.warn(`Failed to download after ${config.retryCount} retries: ${url}`);
-  return { ok: false, bytes: 0, durationMs: 0 };
 }
 
 async function downloadImages(opts: {
@@ -185,12 +191,11 @@ async function downloadImages(opts: {
   );
 
   try {
-    for (let i = 0; i < urls.length; i += concurrency) {
-      const batch = urls.slice(i, i + concurrency);
-
+    let completed = 0;
+    for (const batch of chunk(urls, concurrency)) {
       const results = await Promise.all(
         batch.map(async (url, idx) => {
-          const imageIndex = i + idx;
+          const imageIndex = completed + idx;
           const ext = extractExtension(url);
           const filePath = buildFilePath({ outputDir, index: imageIndex, padLen, ext });
 
@@ -217,10 +222,12 @@ async function downloadImages(opts: {
         }
       }
 
-      if (results.some((r) => !r.ok)) return;
-      onProgress?.(Math.min(i + batch.length, urls.length), batchBytes);
+      completed += batch.length;
 
-      const isLast = i + concurrency >= urls.length;
+      if (results.some((r) => !r.ok)) return;
+      onProgress?.(Math.min(completed, urls.length), batchBytes);
+
+      const isLast = completed >= urls.length;
       if (!isLast && config.downloadDelay > 0 && batchBytes > 0) {
         await sleep(Math.round(config.downloadDelay * (0.5 + Math.random())));
       }

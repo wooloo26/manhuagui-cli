@@ -1,13 +1,13 @@
 import type { Browser, BrowserContext, Page } from "playwright";
 import { config, pickUserAgent } from "./config.js";
-import { randInt } from "./utils.js";
+import { randomInt } from "./utils.js";
 
 export async function createBrowserContext(browser: Browser): Promise<BrowserContext> {
   return browser.newContext({
     userAgent: pickUserAgent(),
     viewport: {
-      width: randInt(config.viewportMinWidth, config.viewportMaxWidth),
-      height: randInt(config.viewportMinHeight, config.viewportMaxHeight),
+      width: randomInt(config.viewportMinWidth, config.viewportMaxWidth),
+      height: randomInt(config.viewportMinHeight, config.viewportMaxHeight),
     },
   });
 }

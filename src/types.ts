@@ -1,16 +1,22 @@
-export interface Chapter {
-  title: string;
-  url: string;
-  pageCount: number;
-}
+import { z } from "zod";
 
-export interface Section {
-  name: string;
-  chapters: Chapter[];
-}
+export const ChapterSchema = z.object({
+  title: z.string(),
+  url: z.url(),
+  pageCount: z.number().int().nonnegative(),
+});
 
-export interface ComicInfo {
-  title: string;
-  id: string;
-  sections: Section[];
-}
+export const SectionSchema = z.object({
+  name: z.string(),
+  chapters: z.array(ChapterSchema),
+});
+
+export const ComicInfoSchema = z.object({
+  title: z.string(),
+  id: z.string(),
+  sections: z.array(SectionSchema),
+});
+
+export type Chapter = z.infer<typeof ChapterSchema>;
+export type Section = z.infer<typeof SectionSchema>;
+export type ComicInfo = z.infer<typeof ComicInfoSchema>;

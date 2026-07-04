@@ -3,7 +3,14 @@ import type { Element as CheerioElement } from "domhandler";
 import type { Page } from "playwright";
 import { handleAdultCheck } from "./browser.js";
 import { config } from "./config.js";
-import type { Chapter, ComicInfo, Section } from "./types.js";
+import { logger } from "./logger.js";
+import {
+  type Chapter,
+  ChapterSchema,
+  type ComicInfo,
+  ComicInfoSchema,
+  type Section,
+} from "./types.js";
 
 function extractComicId(url: string): string {
   const match = url.match(/\/comic\/(\d+)\//);
@@ -43,7 +50,15 @@ export function parseChapters(ulHTML: string, baseUrl: string): Chapter[] {
     const pageMatch = spanHTML.match(/<i[^>]*>(\d+)p<\/i>/);
     const pageCount = pageMatch ? parseInt(pageMatch[1], 10) : 0;
     const url = new URL(href, baseUrl).href;
-    chapters.push({ title, url, pageCount });
+    const result = ChapterSchema.safeParse({ title, url, pageCount });
+    if (result.success) {
+      chapters.push(result.data);
+    } else {
+      logger.debug(
+        `Skipping chapter with invalid data: ${JSON.stringify({ title, url, pageCount })}`,
+      );
+      logger.debug(`Validation errors: ${result.error.message}`);
+    }
   });
 
   chapters.reverse();
@@ -57,7 +72,7 @@ export function parseComicHTML(html: string, baseUrl: string): ComicInfo {
   const sections: Section[] = [];
 
   const chapterDiv = $(".chapter.cf").first();
-  if (!chapterDiv.length) return { title, id, sections };
+  if (!chapterDiv.length) return ComicInfoSchema.parse({ title, id, sections });
 
   chapterDiv.children("h4").each((_, h4) => {
     const sectionName = $(h4).find("span").text().trim();
@@ -69,7 +84,7 @@ export function parseComicHTML(html: string, baseUrl: string): ComicInfo {
     }
   });
 
-  return { title, id, sections };
+  return ComicInfoSchema.parse({ title, id, sections });
 }
 
 export async function parseComicPage(page: Page, url: string): Promise<ComicInfo> {
