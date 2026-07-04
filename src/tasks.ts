@@ -2,7 +2,7 @@ import { join } from "node:path";
 import { sum } from "es-toolkit";
 import type { Browser } from "playwright";
 import { extractChapterImages } from "./chapter.js";
-import { config } from "./config.js";
+import type { Config } from "./config.js";
 import { logger } from "./logger.js";
 import type { ProgressData } from "./progress.js";
 import {
@@ -29,12 +29,50 @@ function countCompletedChapters(progress: ProgressData): number {
   return sum(Object.values(progress.chapters).map((entry) => (entry.status === "done" ? 1 : 0)));
 }
 
+function recordChapterOutcome(opts: {
+  progress: ProgressData;
+  comicDir: string;
+  key: string;
+  success: boolean;
+  collected?: { title: string; urls: string[]; chapterUrl: string };
+  errorMsg?: string;
+  tracker: SpeedTracker;
+  chapterElapsed: number;
+  ui: DownloadUI;
+}): { progress: ProgressData; ok: number; failed: number } {
+  const { progress, comicDir, key, success, collected, errorMsg, tracker, chapterElapsed } = opts;
+  tracker.recordChapter(chapterElapsed);
+
+  if (success && collected) {
+    const updated = updateChapterProgress({
+      comicDir,
+      progress,
+      key,
+      status: "done",
+      extra: { pageCount: collected.urls.length },
+    });
+    opts.ui.finishChapter(true);
+    return { progress: updated, ok: 1, failed: 0 };
+  }
+
+  const updated = updateChapterProgress({
+    comicDir,
+    progress,
+    key,
+    status: "failed",
+    extra: { error: errorMsg ?? "No images found" },
+  });
+  opts.ui.finishChapter(false);
+  return { progress: updated, ok: 0, failed: 1 };
+}
+
 async function processChapter(opts: {
   chapter: Chapter;
   sectionName: string;
   comicTitle: string;
   browser: Browser;
   tracker: SpeedTracker;
+  cfg: Config;
   overwrite: boolean;
   storedUrlsHash?: string;
   onHash?: (hash: string) => void;
@@ -46,19 +84,21 @@ async function processChapter(opts: {
     comicTitle,
     browser,
     tracker,
+    cfg,
     overwrite,
     storedUrlsHash,
     onHash,
     onProgress,
   } = opts;
   const dirName = slugify(chapter.title);
-  const outputDir = join(config.outputBase, slugify(comicTitle), slugify(sectionName), dirName);
+  const outputDir = join(cfg.outputBase, slugify(comicTitle), slugify(sectionName), dirName);
 
   const result = await extractChapterImages({
     chapterUrl: chapter.url,
     browser,
     outputDir,
     tracker,
+    cfg,
     storedUrlsHash,
     overwrite,
     onHash,
@@ -80,6 +120,7 @@ export interface RunPipelineOptions {
   comicTitle: string;
   comicUrl: string;
   browser: Browser;
+  cfg: Config;
   resume: boolean;
   overwrite: boolean;
   totalPagesExpected: number;
@@ -92,13 +133,14 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
     comicTitle,
     comicUrl,
     browser,
+    cfg,
     resume,
     overwrite,
     totalPagesExpected,
   } = opts;
   const collected: Record<string, { urls: string[]; chapterUrl: string }> = {};
   const errors: string[] = [];
-  const comicDir = join(config.outputBase, slugify(comicTitle));
+  const comicDir = join(cfg.outputBase, slugify(comicTitle));
   let progress = resume
     ? (loadProgress(comicDir) ?? createProgress(comicTitle, comicUrl))
     : createProgress(comicTitle, comicUrl);
@@ -141,6 +183,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
             comicTitle,
             browser,
             tracker,
+            cfg,
             overwrite,
             storedUrlsHash,
             onHash: (h) => {
@@ -157,48 +200,44 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
             },
           });
 
-          const chapterElapsed = Date.now() - chapterStart;
-          tracker.recordChapter(chapterElapsed);
+          const outcome = recordChapterOutcome({
+            progress,
+            comicDir,
+            key,
+            success: r !== null,
+            collected: r ?? undefined,
+            errorMsg: r ? undefined : "No images found",
+            tracker,
+            chapterElapsed: Date.now() - chapterStart,
+            ui,
+          });
+          progress = outcome.progress;
 
           if (r) {
             collected[r.title] = { urls: r.urls, chapterUrl: r.chapterUrl };
-            progress = updateChapterProgress({
-              comicDir,
-              progress,
-              key,
-              status: "done",
-              extra: { pageCount: r.urls.length },
-            });
-            ok++;
-            ui.finishChapter(true);
-          } else {
-            progress = updateChapterProgress({
-              comicDir,
-              progress,
-              key,
-              status: "failed",
-              extra: { error: "No images found" },
-            });
-            failed++;
-            ui.finishChapter(false);
           }
+          ok += outcome.ok;
+          failed += outcome.failed;
         } catch (err) {
           const errMsg = err instanceof Error ? err.message : String(err);
           errors.push(`${ch.title}: ${errMsg}`);
-          progress = updateChapterProgress({
-            comicDir,
-            progress,
-            key,
-            status: "failed",
-            extra: { error: errMsg },
-          });
           logger.debug(`Chapter failed: ${ch.title} - ${errMsg}`);
-          failed++;
-          ui.finishChapter(false);
+          const outcome = recordChapterOutcome({
+            progress,
+            comicDir,
+            key,
+            success: false,
+            errorMsg: errMsg,
+            tracker,
+            chapterElapsed: Date.now() - chapterStart,
+            ui,
+          });
+          progress = outcome.progress;
+          failed += outcome.failed;
         }
 
         if (i < section.chapters.length - 1) {
-          const delayMs = randomInt(config.chapterDelayMin, config.chapterDelayMax);
+          const delayMs = randomInt(cfg.chapterDelayMin, cfg.chapterDelayMax);
           ui.startDelay(delayMs);
           await sleep(delayMs);
         }

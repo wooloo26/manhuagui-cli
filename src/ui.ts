@@ -1,7 +1,6 @@
 import chalk from "chalk";
 import logUpdate from "log-update";
-import { config } from "./config.js";
-import { SpeedTracker } from "./speed.js";
+import { estimateOverallEta, SpeedTracker } from "./speed.js";
 
 const BAR_WIDTH = 40;
 const SEP = chalk.dim(" \u00B7 ");
@@ -127,32 +126,16 @@ export class DownloadUI {
     logUpdate.done();
   }
 
-  private computeOverallEta(): number {
-    const elapsed = (Date.now() - this.overallStart) / 1000;
-    const remaining = this.totalChapters - this.completedChapters;
-    if (remaining <= 0) return 0;
-
-    if (this.completedThisSession >= 1) {
-      return remaining * (elapsed / this.completedThisSession);
-    }
-
-    if (this.chapterPageTotal <= 0 || this.chapterPageDone <= 0) {
-      return 0;
-    }
-
-    const chapterElapsed = (Date.now() - this.chapterStart) / 1000;
-    const pageRate = this.chapterPageDone / chapterElapsed;
-    const chapterRemainingSec =
-      (this.chapterPageTotal - this.chapterPageDone) / Math.max(pageRate, 0.001);
-
-    const avgDelay = (config.chapterDelayMin + config.chapterDelayMax) / 2 / 1000;
-    const estimatedChapterSec = chapterElapsed + chapterRemainingSec + avgDelay;
-
-    return chapterRemainingSec + (remaining - 1) * Math.max(estimatedChapterSec, 0);
-  }
-
   render(): void {
-    const overallEtaSec = this.computeOverallEta();
+    const overallEtaSec = estimateOverallEta({
+      overallStart: this.overallStart,
+      chapterStart: this.chapterStart,
+      totalChapters: this.totalChapters,
+      completedChapters: this.completedChapters,
+      completedThisSession: this.completedThisSession,
+      chapterPageDone: this.chapterPageDone,
+      chapterPageTotal: this.chapterPageTotal,
+    });
     const overallEta = formatDurationSeconds(overallEtaSec);
     const elapsedTotal = (Date.now() - this.overallStart) / 1000;
     const elapsed = formatDurationSeconds(elapsedTotal);

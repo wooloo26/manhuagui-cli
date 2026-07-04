@@ -1,6 +1,49 @@
 import { sum } from "es-toolkit";
 import { config } from "./config.js";
 
+export interface OverallEtaInput {
+  overallStart: number;
+  chapterStart: number;
+  totalChapters: number;
+  completedChapters: number;
+  completedThisSession: number;
+  chapterPageDone: number;
+  chapterPageTotal: number;
+}
+
+export function estimateOverallEta(input: OverallEtaInput): number {
+  const {
+    overallStart,
+    chapterStart,
+    totalChapters,
+    completedChapters,
+    completedThisSession,
+    chapterPageDone,
+    chapterPageTotal,
+  } = input;
+
+  const elapsed = (Date.now() - overallStart) / 1000;
+  const remaining = totalChapters - completedChapters;
+  if (remaining <= 0) return 0;
+
+  if (completedThisSession >= 1) {
+    return remaining * (elapsed / completedThisSession);
+  }
+
+  if (chapterPageTotal <= 0 || chapterPageDone <= 0) {
+    return 0;
+  }
+
+  const chapterElapsed = (Date.now() - chapterStart) / 1000;
+  const pageRate = chapterPageDone / chapterElapsed;
+  const chapterRemainingSec = (chapterPageTotal - chapterPageDone) / Math.max(pageRate, 0.001);
+
+  const avgDelay = (config.chapterDelayMin + config.chapterDelayMax) / 2 / 1000;
+  const estimatedChapterSec = chapterElapsed + chapterRemainingSec + avgDelay;
+
+  return chapterRemainingSec + (remaining - 1) * Math.max(estimatedChapterSec, 0);
+}
+
 interface Sample {
   bytes: number;
   durationMs: number;

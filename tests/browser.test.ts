@@ -71,7 +71,7 @@ describe("handleAdultCheck", () => {
 
   it("waits for selector when waitFor is provided", async () => {
     const page = mockPage({ hasCheckAdult: true });
-    await handleAdultCheck(page, ".mangaFile");
+    await handleAdultCheck(page, undefined, ".mangaFile");
 
     expect(page.waitForSelector).toHaveBeenCalledWith(".mangaFile", expect.any(Object));
     expect(page.waitForTimeout).toHaveBeenCalled();
@@ -93,7 +93,7 @@ describe("handleAdultCheck", () => {
 
   it("does not wait even when waitFor is provided but #checkAdult is absent", async () => {
     const page = mockPage({ hasCheckAdult: false });
-    await handleAdultCheck(page, ".selector");
+    await handleAdultCheck(page, undefined, ".selector");
 
     expect(page.waitForSelector).not.toHaveBeenCalled();
     expect(page.waitForTimeout).not.toHaveBeenCalled();

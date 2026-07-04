@@ -3,14 +3,14 @@ import { join } from "node:path";
 import { chunk, retry } from "es-toolkit";
 import type { Browser, BrowserContext, Page as PlaywrightPage, Response } from "playwright";
 import { createBrowserContext, handleAdultCheck } from "./browser.js";
-import { config } from "./config.js";
+import { type Config, config as defaultConfig } from "./config.js";
 import { rotateHost } from "./download.js";
 import { logger } from "./logger.js";
 import type { SpeedTracker } from "./speed.js";
 import { ensureDir, hashUrls, sleep } from "./utils.js";
 
-export function computePadLength(count: number): number {
-  return Math.max(config.padMinLength, String(count).length);
+export function computePadLength(count: number, cfg: Config = defaultConfig): number {
+  return Math.max(cfg.padMinLength, String(count).length);
 }
 
 export function extractExtension(url: string): string {
@@ -43,9 +43,12 @@ export async function getPageCount(page: PlaywrightPage): Promise<number> {
   });
 }
 
-export async function getSubPageUrls(page: PlaywrightPage): Promise<string[]> {
+export async function getSubPageUrls(
+  page: PlaywrightPage,
+  cfg: Config = defaultConfig,
+): Promise<string[]> {
   try {
-    await page.waitForSelector("#pagination a", { timeout: config.tabLoadTimeout });
+    await page.waitForSelector("#pagination a", { timeout: cfg.tabLoadTimeout });
     return await page.evaluate(() => {
       const links = document.querySelectorAll("#pagination a");
       if (links.length <= 1) return [];
@@ -58,7 +61,11 @@ export async function getSubPageUrls(page: PlaywrightPage): Promise<string[]> {
   }
 }
 
-export async function collectImageUrls(page: PlaywrightPage, pageCount: number): Promise<string[]> {
+export async function collectImageUrls(
+  page: PlaywrightPage,
+  pageCount: number,
+  cfg: Config = defaultConfig,
+): Promise<string[]> {
   const urls: string[] = [];
   const pagePath = page.url().split("#")[0];
   let currentUrl = await page.$eval("#mangaFile", (img) => (img as HTMLImageElement).src);
@@ -69,7 +76,7 @@ export async function collectImageUrls(page: PlaywrightPage, pageCount: number):
     try {
       await page.waitForSelector("#next", {
         state: "visible",
-        timeout: config.nextBtnTimeout,
+        timeout: cfg.nextBtnTimeout,
       });
     } catch {
       break;
@@ -81,7 +88,7 @@ export async function collectImageUrls(page: PlaywrightPage, pageCount: number):
       },
       {
         retries: 2,
-        delay: (_attempt) => config.retryBackoffBase,
+        delay: (_attempt) => cfg.retryBackoffBase,
       },
     );
     await page.waitForFunction(
@@ -90,10 +97,10 @@ export async function collectImageUrls(page: PlaywrightPage, pageCount: number):
         return img !== null && img.src !== "" && img.src !== prev;
       },
       prevUrl,
-      { timeout: config.nextPageTimeout },
+      { timeout: cfg.nextPageTimeout },
     );
 
-    await page.waitForTimeout(config.imageLoadDelay);
+    await page.waitForTimeout(cfg.imageLoadDelay);
 
     if (page.url().split("#")[0] !== pagePath) break;
 
@@ -104,14 +111,18 @@ export async function collectImageUrls(page: PlaywrightPage, pageCount: number):
   return urls;
 }
 
-async function navigateToChapterPage(page: PlaywrightPage, url: string): Promise<void> {
+async function navigateToChapterPage(
+  page: PlaywrightPage,
+  url: string,
+  cfg: Config = defaultConfig,
+): Promise<void> {
   await page.goto(url, {
     waitUntil: "domcontentloaded",
-    timeout: config.pageLoadTimeout,
+    timeout: cfg.pageLoadTimeout,
   });
 
-  await handleAdultCheck(page);
-  await page.waitForSelector("#mangaFile", { timeout: config.chapterSelectorTimeout });
+  await handleAdultCheck(page, cfg);
+  await page.waitForSelector("#mangaFile", { timeout: cfg.chapterSelectorTimeout });
 }
 
 export function validateImageResponse(response: Response | null): void {
@@ -152,8 +163,9 @@ async function downloadImage(opts: {
   outputDir: string;
   imageIndex: number;
   padLen: number;
+  cfg: Config;
 }): Promise<DownloadResult> {
-  const { dlPage, chapterUrl, url, outputDir, imageIndex, padLen } = opts;
+  const { dlPage, chapterUrl, url, outputDir, imageIndex, padLen, cfg } = opts;
   const filePath = buildFilePath({
     outputDir,
     index: imageIndex,
@@ -170,7 +182,7 @@ async function downloadImage(opts: {
         const response = await dlPage.goto(downloadUrl, {
           referer: chapterUrl,
           waitUntil: "load",
-          timeout: config.pageLoadTimeout,
+          timeout: cfg.pageLoadTimeout,
         });
         validateImageResponse(response);
         const base64 = await fetchImageAsBase64(dlPage);
@@ -179,18 +191,22 @@ async function downloadImage(opts: {
         return { ok: true as const, bytes: buffer.length, durationMs: Date.now() - started };
       },
       {
-        retries: config.retryCount - 1,
+        retries: cfg.retryCount - 1,
         delay: (attempt) => {
           downloadUrl = rotateHost(downloadUrl);
-          return config.retryBackoffBase * (attempt + 1);
+          return cfg.retryBackoffBase * (attempt + 1);
         },
       },
     );
     return result;
   } catch {
-    logger.warn(`Failed to download after ${config.retryCount} retries: ${url}`);
+    logger.warn(`Failed to download after ${cfg.retryCount} retries: ${url}`);
     return { ok: false, bytes: 0, durationMs: 0 };
   }
+}
+
+function isImageDownloaded(filePath: string): boolean {
+  return existsSync(filePath) && statSync(filePath).size > 0;
 }
 
 async function downloadImages(opts: {
@@ -200,10 +216,11 @@ async function downloadImages(opts: {
   urls: string[];
   padLen: number;
   tracker: SpeedTracker;
+  cfg: Config;
   onProgress?: (downloaded: number, bytes: number) => void;
 }): Promise<void> {
-  const { context, chapterUrl, outputDir, urls, padLen, tracker, onProgress } = opts;
-  const concurrency = Math.min(config.imageConcurrency, urls.length);
+  const { context, chapterUrl, outputDir, urls, padLen, tracker, cfg, onProgress } = opts;
+  const concurrency = Math.min(cfg.imageConcurrency, urls.length);
   const downloadPages = await Promise.all(
     Array.from({ length: concurrency }, () => context.newPage()),
   );
@@ -221,7 +238,7 @@ async function downloadImages(opts: {
             ext: extractExtension(url),
           });
 
-          if (existsSync(filePath) && statSync(filePath).size > 0) {
+          if (isImageDownloaded(filePath)) {
             return { ok: true, bytes: 0, durationMs: 0 };
           }
 
@@ -232,6 +249,7 @@ async function downloadImages(opts: {
             outputDir,
             imageIndex,
             padLen,
+            cfg,
           });
         }),
       );
@@ -250,8 +268,8 @@ async function downloadImages(opts: {
       onProgress?.(Math.min(completed, urls.length), batchBytes);
 
       const isLast = completed >= urls.length;
-      if (!isLast && config.downloadDelay > 0 && batchBytes > 0) {
-        await sleep(Math.round(config.downloadDelay * (0.5 + Math.random())));
+      if (!isLast && cfg.downloadDelay > 0 && batchBytes > 0) {
+        await sleep(Math.round(cfg.downloadDelay * (0.5 + Math.random())));
       }
     }
   } finally {
@@ -262,75 +280,96 @@ async function downloadImages(opts: {
 async function collectImageUrlsFromSubPages(
   page: PlaywrightPage,
   subPageUrls: string[],
+  cfg: Config,
 ): Promise<string[]> {
   const allUrls: string[] = [];
   for (let i = 0; i < subPageUrls.length; i++) {
     if (i > 0) {
-      await navigateToChapterPage(page, subPageUrls[i]);
+      await navigateToChapterPage(page, subPageUrls[i], cfg);
     }
 
     const tabPageCount = await getPageCount(page);
     if (tabPageCount <= 0) continue;
 
-    const tabUrls = await collectImageUrls(page, tabPageCount);
+    const tabUrls = await collectImageUrls(page, tabPageCount, cfg);
     allUrls.push(...tabUrls);
   }
   return allUrls;
 }
+
+function clearChapterDir(outputDir: string): void {
+  try {
+    for (const f of readdirSync(outputDir)) {
+      rmSync(join(outputDir, f), { force: true });
+    }
+  } catch {
+    // directory may not exist yet
+  }
+}
+
+async function resolveChapterUrls(
+  page: PlaywrightPage,
+  cfg: Config,
+  onProgress?: (downloaded: number, total: number, bytes: number) => void,
+): Promise<string[] | null> {
+  const subPageUrls = await getSubPageUrls(page, cfg);
+
+  if (subPageUrls.length > 0) {
+    return collectImageUrlsFromSubPages(page, subPageUrls, cfg);
+  }
+
+  const expectedCount = await getPageCount(page);
+  if (expectedCount <= 0) return null;
+  onProgress?.(0, expectedCount, 0);
+  return collectImageUrls(page, expectedCount, cfg);
+}
+
 export async function extractChapterImages(opts: {
   chapterUrl: string;
   browser: Browser;
   outputDir: string;
   tracker: SpeedTracker;
+  cfg?: Config;
   storedUrlsHash?: string;
   overwrite?: boolean;
   onHash?: (hash: string) => void;
   onProgress?: (downloaded: number, total: number, bytes: number) => void;
 }): Promise<{ urls: string[]; urlsHash: string } | null> {
-  const { chapterUrl, browser, outputDir, tracker, storedUrlsHash, overwrite, onHash, onProgress } =
-    opts;
+  const {
+    chapterUrl,
+    browser,
+    outputDir,
+    tracker,
+    cfg = defaultConfig,
+    storedUrlsHash,
+    overwrite,
+    onHash,
+    onProgress,
+  } = opts;
   ensureDir(outputDir);
 
-  const context = await createBrowserContext(browser);
+  const context = await createBrowserContext(browser, cfg);
   const page = await context.newPage();
 
   try {
-    await navigateToChapterPage(page, chapterUrl);
+    await navigateToChapterPage(page, chapterUrl, cfg);
 
-    const subPageUrls = await getSubPageUrls(page);
-
-    let urls: string[];
-    if (subPageUrls.length > 0) {
-      urls = await collectImageUrlsFromSubPages(page, subPageUrls);
-    } else {
-      const expectedCount = await getPageCount(page);
-      if (expectedCount <= 0) return null;
-      onProgress?.(0, expectedCount, 0);
-      urls = await collectImageUrls(page, expectedCount);
-    }
-
-    if (urls.length === 0) return null;
+    const urls = await resolveChapterUrls(page, cfg, onProgress);
+    if (!urls || urls.length === 0) return null;
 
     const urlsHash = hashUrls(urls);
     onHash?.(urlsHash);
 
-    const cdnChanged = storedUrlsHash !== undefined && storedUrlsHash !== urlsHash;
-    if (overwrite || cdnChanged) {
+    if (overwrite || (storedUrlsHash !== undefined && storedUrlsHash !== urlsHash)) {
       logger.debug(
-        cdnChanged
+        storedUrlsHash !== undefined && storedUrlsHash !== urlsHash
           ? "CDN URLs changed, clearing chapter directory"
           : "Overwrite enabled, clearing unfinished chapter directory",
       );
-      try {
-        for (const f of readdirSync(outputDir)) {
-          rmSync(join(outputDir, f), { force: true });
-        }
-      } catch {
-        // directory may not exist yet
-      }
+      clearChapterDir(outputDir);
     }
 
-    const padLen = computePadLength(urls.length);
+    const padLen = computePadLength(urls.length, cfg);
     const actualCount = urls.length;
     onProgress?.(0, actualCount, 0);
     await downloadImages({
@@ -340,6 +379,7 @@ export async function extractChapterImages(opts: {
       urls,
       padLen,
       tracker,
+      cfg,
       onProgress: (downloaded, bytes) => onProgress?.(downloaded, actualCount, bytes),
     });
     return { urls, urlsHash };

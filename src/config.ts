@@ -51,15 +51,15 @@ export type UserConfigOverrides = Partial<
   >
 >;
 
-const BUILTIN_USER_AGENTS = [
+const BUILTIN_USER_AGENTS = Object.freeze([
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:133.0) Gecko/20100101 Firefox/133.0",
-];
+]);
 
-const DEFAULTS: Config = {
+const DEFAULTS = Object.freeze({
   outputBase: "./output",
   imageConcurrency: 2,
   downloadDelay: 3000,
@@ -82,11 +82,11 @@ const DEFAULTS: Config = {
   viewportMaxWidth: 1600,
   viewportMinHeight: 800,
   viewportMaxHeight: 1000,
-};
+});
 
 const LOG_LEVEL_MAP: Record<string, number> = {
   error: 0,
-  warn: 1,
+  warn: 2,
   info: 3,
   debug: 4,
 };
@@ -134,6 +134,6 @@ export function applyLogLevel(level: string): void {
   logger.level = LOG_LEVEL_MAP[level] ?? 3;
 }
 
-export function pickUserAgent(): string {
-  return sample(config.userAgents);
+export function pickUserAgent(cfg: Config = config): string {
+  return sample(cfg.userAgents);
 }

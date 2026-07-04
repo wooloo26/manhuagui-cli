@@ -1,25 +1,32 @@
 import { retry } from "es-toolkit";
 import type { Browser, BrowserContext, Page } from "playwright";
-import { config, pickUserAgent } from "./config.js";
+import { type Config, config as defaultConfig, pickUserAgent } from "./config.js";
 import { randomInt } from "./utils.js";
 
-export async function createBrowserContext(browser: Browser): Promise<BrowserContext> {
+export async function createBrowserContext(
+  browser: Browser,
+  cfg: Config = defaultConfig,
+): Promise<BrowserContext> {
   return browser.newContext({
-    userAgent: pickUserAgent(),
+    userAgent: pickUserAgent(cfg),
     viewport: {
-      width: randomInt(config.viewportMinWidth, config.viewportMaxWidth),
-      height: randomInt(config.viewportMinHeight, config.viewportMaxHeight),
+      width: randomInt(cfg.viewportMinWidth, cfg.viewportMaxWidth),
+      height: randomInt(cfg.viewportMinHeight, cfg.viewportMaxHeight),
     },
   });
 }
 
-export async function handleAdultCheck(page: Page, waitFor?: string): Promise<void> {
+export async function handleAdultCheck(
+  page: Page,
+  cfg: Config = defaultConfig,
+  waitFor?: string,
+): Promise<void> {
   const checkAdult = await page.$("#checkAdult");
   if (!checkAdult) return;
 
   await page.waitForSelector("#checkAdult", {
     state: "visible",
-    timeout: config.adultSelectorTimeout,
+    timeout: cfg.adultSelectorTimeout,
   });
 
   await retry(
@@ -28,12 +35,14 @@ export async function handleAdultCheck(page: Page, waitFor?: string): Promise<vo
     },
     {
       retries: 2,
-      delay: (_attempt) => config.retryBackoffBase,
+      delay: (_attempt) => cfg.retryBackoffBase,
     },
-  );
+  ).catch(() => {
+    throw new Error("Failed to dismiss adult check after retries");
+  });
 
   if (waitFor) {
-    await page.waitForSelector(waitFor, { timeout: config.adultSelectorTimeout });
-    await page.waitForTimeout(config.adultClickSettleDelay);
+    await page.waitForSelector(waitFor, { timeout: cfg.adultSelectorTimeout });
+    await page.waitForTimeout(cfg.adultClickSettleDelay);
   }
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { applyFilters, command } from "../src/cli.js";
+import { command } from "../src/cli.js";
+import { applyFilters } from "../src/reporting.js";
 import type { Section } from "../src/types.js";
 
 function makeSection(name: string, chapters: string[]): Section {

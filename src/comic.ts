@@ -2,7 +2,7 @@ import * as cheerio from "cheerio";
 import type { Element as CheerioElement } from "domhandler";
 import type { Page } from "playwright";
 import { handleAdultCheck } from "./browser.js";
-import { config } from "./config.js";
+import { type Config, config as defaultConfig } from "./config.js";
 import { logger } from "./logger.js";
 import {
   type Chapter,
@@ -87,16 +87,20 @@ export function parseComicHTML(html: string, baseUrl: string): ComicInfo {
   return ComicInfoSchema.parse({ title, id, sections });
 }
 
-export async function parseComicPage(page: Page, url: string): Promise<ComicInfo> {
+export async function parseComicPage(
+  page: Page,
+  url: string,
+  cfg: Config = defaultConfig,
+): Promise<ComicInfo> {
   const response = await page.goto(url, {
     waitUntil: "domcontentloaded",
-    timeout: config.pageLoadTimeout,
+    timeout: cfg.pageLoadTimeout,
   });
   if (!response?.ok()) {
     throw new Error(`Failed to load comic page: ${response?.status()}`);
   }
 
-  await handleAdultCheck(page, ".chapter h4");
+  await handleAdultCheck(page, cfg, ".chapter h4");
   const html = await page.content();
   return parseComicHTML(html, url);
 }

@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { Browser } from "playwright";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { initConfig } from "../../src/config.js";
+import { config, initConfig } from "../../src/config.js";
 import { saveProgress, chapterKey } from "../../src/progress.js";
 import type { Section } from "../../src/types.js";
 import { slugify } from "../../src/utils.js";
@@ -120,6 +120,7 @@ describe("runPipeline integration", () => {
       comicTitle: "Test Comic",
       comicUrl: "https://example.com/comic/123",
       browser: {} as Browser,
+      cfg: config,
       resume: false,
       overwrite: false,
       totalPagesExpected: 20,
@@ -161,6 +162,7 @@ describe("runPipeline integration", () => {
       comicTitle: "Test Comic",
       comicUrl: "https://example.com/comic/123",
       browser: {} as Browser,
+      cfg: config,
       resume: true,
       overwrite: false,
       totalPagesExpected: 20,
@@ -193,6 +195,7 @@ describe("runPipeline integration", () => {
       comicTitle: "Fail Comic",
       comicUrl: "https://example.com/comic/123",
       browser: {} as Browser,
+      cfg: config,
       resume: false,
       overwrite: false,
       totalPagesExpected: 20,
@@ -212,6 +215,7 @@ describe("runPipeline integration", () => {
       comicTitle: "Empty Comic",
       comicUrl: "https://example.com/comic/123",
       browser: {} as Browser,
+      cfg: config,
       resume: false,
       overwrite: false,
       totalPagesExpected: 0,
@@ -237,6 +241,7 @@ describe("runPipeline integration", () => {
       comicTitle: "Null Chapter",
       comicUrl: "https://example.com/comic/123",
       browser: {} as Browser,
+      cfg: config,
       resume: false,
       overwrite: false,
       totalPagesExpected: 10,
@@ -257,6 +262,7 @@ describe("runPipeline integration", () => {
       comicTitle: "Progress Comic",
       comicUrl: "https://example.com/comic/123",
       browser: {} as Browser,
+      cfg: config,
       resume: false,
       overwrite: false,
       totalPagesExpected: 10,
@@ -285,6 +291,7 @@ describe("runPipeline integration", () => {
       comicTitle: "UI Comic",
       comicUrl: "https://example.com/comic/123",
       browser: {} as Browser,
+      cfg: config,
       resume: false,
       overwrite: false,
       totalPagesExpected: 10,

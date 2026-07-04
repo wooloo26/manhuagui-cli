@@ -10,8 +10,9 @@ export function randomInt(min: number, max: number): number {
 
 export function slugify(text: string): string {
   return text
-    .replace(/[<>:"/\\|?*]/g, "")
+    .replace(/[\0<>:"/\\|?*]/g, "")
     .replace(/\s+/g, " ")
+    .replace(/\.{2,}/g, ".")
     .trim();
 }
 
