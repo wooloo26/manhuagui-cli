@@ -30,6 +30,17 @@ manhuagui-cli
 
 Run without arguments to be guided through the process step by step: enter comic URL -> parse comic info -> select sections (multi-select) -> download.
 
+## Features
+
+- Interactive + CLI dual mode
+- Section/chapter filtering for download
+- Playwright anti-bot (random UA, viewport)
+- Concurrent download + auto retry with backoff
+- Resumable (progress.json + skip downloaded)
+- Live terminal progress bar (speed, ETA, elapsed)
+- Dry-run mode (--dry-run)
+- Flexible config (CLI > env > defaults)
+
 ## Installation
 
 ### npm (recommended)
