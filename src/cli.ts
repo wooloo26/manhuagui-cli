@@ -5,7 +5,7 @@ import type { Browser } from "playwright";
 import { chromium } from "playwright";
 import { createBrowserContext } from "./browser.js";
 import { parseComicPage } from "./comic.js";
-import { config, initConfig, type UserConfigOverrides } from "./config.js";
+import { applyLogLevel, config, initConfig, type UserConfigOverrides } from "./config.js";
 import { CancelledError } from "./errors.js";
 import { logger } from "./logger.js";
 import { chapterKey, filterPending, loadProgress } from "./progress.js";
@@ -83,6 +83,23 @@ function reportResults(result: PipelineResult, attempted: number): void {
     logger.warn(`${result.errors.length} errors:`);
     for (const e of result.errors) logger.warn(`  - ${e}`);
   }
+}
+
+function countTotalPages(sections: Section[]): number {
+  return sections.reduce((sum, s) => sum + s.chapters.reduce((cs, c) => cs + c.pageCount, 0), 0);
+}
+
+function filterSectionsForResume(
+  sections: Section[],
+  comicDir: string,
+  shouldResume: boolean,
+  overwrite: boolean,
+): Section[] | null {
+  if (!shouldResume) return sections;
+  const progress = loadProgress(comicDir);
+  if (!progress) return sections;
+  const filtered = filterPending(progress, sections, overwrite);
+  return filtered.length === 0 ? null : filtered;
 }
 
 function buildChapterIndexMap(sections: Section[]): Map<string, number> {
@@ -178,23 +195,15 @@ async function runDirect(opts: {
     }
 
     const chapterIndexMap = buildChapterIndexMap(sections);
+    const totalPagesExpected = countTotalPages(sections);
+    const comicDir = join(config.outputBase, slugify(comic.title));
 
-    const totalPagesExpected = sections.reduce(
-      (sum, s) => sum + s.chapters.reduce((cs, c) => cs + c.pageCount, 0),
-      0,
-    );
-
-    if (resume) {
-      const comicDir = join(config.outputBase, slugify(comic.title));
-      const progress = loadProgress(comicDir);
-      if (progress) {
-        sections = filterPending(progress, sections, overwrite);
-        if (sections.length === 0) {
-          logger.info("All chapters already downloaded.");
-          return;
-        }
-      }
+    const filtered = filterSectionsForResume(sections, comicDir, resume, overwrite);
+    if (filtered === null) {
+      logger.info("All chapters already downloaded.");
+      return;
     }
+    sections = filtered;
 
     const totalChapters = logSectionSummary(sections);
 
@@ -244,22 +253,14 @@ async function runInteractive(resume: boolean, overwrite: boolean, dryRun: boole
     let selected = await promptSections(comic.sections);
 
     const chapterIndexMap = buildChapterIndexMap(selected);
+    const totalPagesExpected = countTotalPages(selected);
 
-    const totalPagesExpected = selected.reduce(
-      (sum, s) => sum + s.chapters.reduce((cs, c) => cs + c.pageCount, 0),
-      0,
-    );
-
-    if (shouldResume) {
-      const progress = loadProgress(comicDir);
-      if (progress) {
-        selected = filterPending(progress, selected, shouldOverwrite);
-        if (selected.length === 0) {
-          outro("All chapters already downloaded.");
-          return;
-        }
-      }
+    const filtered = filterSectionsForResume(selected, comicDir, shouldResume, shouldOverwrite);
+    if (filtered === null) {
+      outro("All chapters already downloaded.");
+      return;
     }
+    selected = filtered;
 
     const totalChapters = logSectionSummary(selected);
 
@@ -359,6 +360,7 @@ export const command = defineCommand({
       cliOverrides.logLevel = args["log-level"] as UserConfigOverrides["logLevel"];
     }
     initConfig(cliOverrides);
+    applyLogLevel(config.logLevel);
     try {
       if (args.url) {
         await runDirect({

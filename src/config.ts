@@ -126,7 +126,10 @@ export let config: Config = buildConfig();
 
 export function initConfig(cliOverrides?: UserConfigOverrides): void {
   config = buildConfig(cliOverrides);
-  logger.level = LOG_LEVEL_MAP[config.logLevel] ?? 3;
+}
+
+export function applyLogLevel(level: string): void {
+  logger.level = LOG_LEVEL_MAP[level] ?? 3;
 }
 
 export function pickUserAgent(): string {

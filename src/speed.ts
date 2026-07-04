@@ -48,7 +48,7 @@ export class SpeedTracker {
     return this.samples.length;
   }
 
-  estimateSection(remainingImages: number, remainingChapters: number): number {
+  estimateRemainingMs(remainingImages: number, remainingChapters: number): number {
     const speed = this.bytesPerSecond;
     const avgBytes = this.avgBytesPerImage;
     if (speed <= 0 || avgBytes <= 0 || remainingImages <= 0) return 0;

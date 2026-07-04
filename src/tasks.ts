@@ -25,7 +25,7 @@ export interface PipelineResult {
   failed: number;
 }
 
-function countCompleted(progress: ProgressData): number {
+function countCompletedChapters(progress: ProgressData): number {
   return sum(Object.values(progress.chapters).map((entry) => (entry.status === "done" ? 1 : 0)));
 }
 
@@ -104,7 +104,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
     : createProgress(comicTitle, comicUrl);
   saveProgress(comicDir, progress);
 
-  const completedFromResume = countCompleted(progress);
+  const completedFromResume = countCompletedChapters(progress);
   const pendingChapters = sum(sections.map((s) => s.chapters.length));
   const totalChapters = completedFromResume + pendingChapters;
   const initialPagesDone = resume ? countCompletedPages(progress) : 0;

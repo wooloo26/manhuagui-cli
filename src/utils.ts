@@ -19,17 +19,8 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export async function humanDelay(min: number, max: number): Promise<void> {
-  await sleep(randomInt(min, max));
-}
-
 export function ensureDir(dir: string): void {
   mkdirSync(dir, { recursive: true });
-}
-
-export function saveJSON(filePath: string, data: unknown): void {
-  ensureDir(dirname(filePath));
-  writeFileSync(filePath, JSON.stringify(data, null, 2), "utf-8");
 }
 
 export function atomicSaveJSON(filePath: string, data: unknown): void {

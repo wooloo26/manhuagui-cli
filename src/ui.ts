@@ -1,20 +1,13 @@
 import chalk from "chalk";
 import logUpdate from "log-update";
 import { config } from "./config.js";
+import { SpeedTracker } from "./speed.js";
 
 const BAR_WIDTH = 40;
 const SEP = chalk.dim(" \u00B7 ");
 
-function formatDuration(seconds: number): string {
-  if (seconds <= 0 || !Number.isFinite(seconds)) return "--";
-  const s = Math.round(seconds);
-  if (s < 60) return `${s}s`;
-  const mins = Math.floor(s / 60);
-  const secs = s % 60;
-  if (mins < 60) return secs > 0 ? `${mins}m ${secs}s` : `${mins}m`;
-  const hours = Math.floor(mins / 60);
-  const m = mins % 60;
-  return m > 0 ? `${hours}h ${m}m` : `${hours}h`;
+function formatDurationSeconds(seconds: number): string {
+  return SpeedTracker.formatMs(seconds * 1000);
 }
 
 function formatSpeed(bytesPerSec: number): string {
@@ -161,9 +154,9 @@ export class DownloadUI {
 
   render(): void {
     const overallEtaSec = this.computeOverallEta();
-    const overallEta = formatDuration(overallEtaSec);
+    const overallEta = formatDurationSeconds(overallEtaSec);
     const elapsedTotal = (Date.now() - this.overallStart) / 1000;
-    const elapsed = formatDuration(elapsedTotal);
+    const elapsed = formatDurationSeconds(elapsedTotal);
 
     const chInfo = `${chalk.cyan(String(this.completedChapters))}/${chalk.cyan(String(this.totalChapters))} ch`;
     const elapsedStr = chalk.gray(`${elapsed} elapsed`);
@@ -196,7 +189,7 @@ export class DownloadUI {
       chEta = "done";
       chEtaDone = true;
     } else if (this.chapterPageTotal > 0 && this.chapterPageDone > 0) {
-      chEta = `~ ${formatDuration(
+      chEta = `~ ${formatDurationSeconds(
         ((this.chapterPageTotal - this.chapterPageDone) / this.chapterPageDone) * elapsedChapter,
       )}`;
     } else {
