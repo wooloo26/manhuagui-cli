@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rotateHost } from "./download.js";
+import { rotateHost } from "../src/download.js";
 
 describe("rotateHost", () => {
   it("rotates eu to eu1", () => {

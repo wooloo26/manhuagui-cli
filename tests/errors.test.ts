@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CancelledError } from "./errors.js";
+import { CancelledError } from "../src/errors.js";
 
 describe("CancelledError", () => {
   it("is an instance of CancelledError", () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { config, pickUserAgent } from "./config.js";
+import { config, pickUserAgent } from "../src/config.js";
 
 describe("pickUserAgent", () => {
   it("returns one of the configured user agents", () => {

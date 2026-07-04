@@ -1,5 +1,3 @@
-/// <reference types="node" />
-
 import { join } from "node:path";
 import type { Page, Response } from "playwright";
 import { describe, expect, it, vi } from "vitest";
@@ -11,7 +9,7 @@ import {
   getPageCount,
   getSubPageUrls,
   validateImageResponse,
-} from "./chapter.js";
+} from "../src/chapter.js";
 
 describe("computePadLength", () => {
   it("returns padMinLength (3) for counts with fewer digits", () => {

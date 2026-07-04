@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertNotCanceled } from "./prompts.js";
+import { assertNotCanceled } from "../src/prompts.js";
 
 describe("assertNotCanceled", () => {
   it("passes through a normal string value", () => {

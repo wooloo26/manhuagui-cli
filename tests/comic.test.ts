@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseChapters, parseComicHTML } from "./comic.js";
-import type { Chapter } from "./types.js";
+import { parseChapters, parseComicHTML } from "../src/comic.js";
+import type { Chapter } from "../src/types.js";
 
 const BASE_URL = "https://www.manhuagui.com/comic/123/";
 

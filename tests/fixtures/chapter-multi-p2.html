@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<title>chapter-multi-p2</title>
+</head>
+<body>
+<div class="chapter cf">
+  <div id="pagination">
+    <a href="https://www.manhuagui.com/comic/7580/12345.html">1</a>
+    <a href="https://www.manhuagui.com/comic/7580/12345_p2.html">2</a>
+  </div>
+  <img id="mangaFile" src="https://eu.manhuagui.com/img/test/multi-006.webp" alt="page 6" />
+  <a id="next" href="javascript:;">下一页</a>
+  <div class="page-count"><span id="page">1</span>/5</div>
+</div>
+<script>
+(function() {
+  var BASE = 'https://eu.manhuagui.com/img/test/';
+  var IMAGES = [
+    BASE + 'multi-006.webp',
+    BASE + 'multi-007.webp',
+    BASE + 'multi-008.webp',
+    BASE + 'multi-009.webp',
+    BASE + 'multi-010.webp'
+  ];
+  var idx = 0;
+  var total = IMAGES.length;
+  function updatePage() {
+    var s = document.getElementById('page');
+    if (s) s.textContent = (idx + 1) + '';
+  }
+  document.getElementById('next').addEventListener('click', function() {
+    idx++;
+    if (idx < total) {
+      document.getElementById('mangaFile').src = IMAGES[idx];
+      updatePage();
+    }
+  });
+})();
+</script>
+</body>
+</html>

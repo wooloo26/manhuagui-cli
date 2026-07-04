@@ -2,7 +2,7 @@ import { readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, describe, expect, it, vi } from "vitest";
-import { ensureDir, saveJSON, sleep, slugify } from "./utils.js";
+import { ensureDir, saveJSON, sleep, slugify } from "../src/utils.js";
 
 describe("slugify", () => {
   it("keeps normal text unchanged", () => {

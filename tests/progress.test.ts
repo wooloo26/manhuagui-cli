@@ -1,5 +1,3 @@
-/// <reference types="node" />
-
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -11,8 +9,8 @@ import {
   loadProgress,
   saveProgress,
   updateChapterProgress,
-} from "./progress.js";
-import type { Chapter, Section } from "./types.js";
+} from "../src/progress.js";
+import type { Chapter, Section } from "../src/types.js";
 
 const testDir = join(tmpdir(), `manhuagui-progress-${Date.now()}`);
 

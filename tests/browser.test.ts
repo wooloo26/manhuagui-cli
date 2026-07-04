@@ -1,6 +1,6 @@
 import type { Browser, BrowserContext, Page } from "playwright";
 import { describe, expect, it, vi } from "vitest";
-import { createBrowserContext, handleAdultCheck } from "./browser.js";
+import { createBrowserContext, handleAdultCheck } from "../src/browser.js";
 
 function mockBrowser(): Browser {
   return {
