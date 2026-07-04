@@ -91,6 +91,7 @@ interface DownloadResult {
   ok: boolean;
   bytes: number;
   durationMs: number;
+  error?: string;
 }
 
 async function downloadImage(opts: {
@@ -138,8 +139,12 @@ async function downloadImage(opts: {
     return result;
   } catch (err) {
     const reason = err instanceof Error ? err.message : String(err);
-    logger.warn(`Failed to download after ${cfg.retryCount} retries: ${url} (${reason})`);
-    return { ok: false, bytes: 0, durationMs: 0 };
+    return {
+      ok: false,
+      bytes: 0,
+      durationMs: 0,
+      error: `Failed to download after ${cfg.retryCount} retries: ${url} (${reason})`,
+    };
   }
 }
 
@@ -212,7 +217,16 @@ export async function downloadImages(opts: {
 
       completed += batch.length;
 
-      if (results.some((r) => !r.ok)) return;
+      if (results.some((r) => !r.ok)) {
+        const failed = results.filter(
+          (r): r is DownloadResult & { ok: false; error: string } => !r.ok && r.error !== undefined,
+        );
+        throw new Error(
+          failed.length > 0
+            ? failed.map((r) => r.error).join("; ")
+            : "Image download failed after all retries",
+        );
+      }
       onProgress?.(Math.min(completed, urls.length), batchBytes);
 
       const isLast = completed >= urls.length;
