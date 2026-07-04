@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.0.4](https://github.com/wooloo26/manhuagui-cli/compare/v1.0.3...v1.0.4) (2026-07-04)
+
+### Features
+
+* **resume:** auto-select in-progress sections when resuming ([2b93b2d](https://github.com/wooloo26/manhuagui-cli/commit/2b93b2d1965bd5cc9f8ea2ba1170e08956fb96ce))
+
+### Bug Fixes
+
+* **cli:** read version from package.json instead of hardcoding ([9c714b6](https://github.com/wooloo26/manhuagui-cli/commit/9c714b645b26e03929064955b816c96aa3dde880))
+* **download:** add visibility check and retry for click operations ([105f3a6](https://github.com/wooloo26/manhuagui-cli/commit/105f3a675369c0370b687c7cd537d2dccf549e6c))
+* **download:** add visibility check and retry for click operations ([41596ee](https://github.com/wooloo26/manhuagui-cli/commit/41596eeab6a79c879f9e8f9b459bf0a0fb725fb5))
+* **download:** record chapter as failed when image download errors ([e2df2a4](https://github.com/wooloo26/manhuagui-cli/commit/e2df2a4f1b321731eebf6951adc0f27b3baa4884))
+* **overwrite:** overwrite only re-downloads unfinished (non-done) chapters, done chapters are always protected ([2e003c4](https://github.com/wooloo26/manhuagui-cli/commit/2e003c435ac9774eb14d26711e1c43f67d63366e))
+* **progress:** allow resume of chapters with pending status ([3dd8427](https://github.com/wooloo26/manhuagui-cli/commit/3dd8427c9549ee9ea87bbbe3b8ba28cdb257fb3e))
+
 ## [1.0.3](https://github.com/wooloo26/manhuagui-cli/compare/v1.0.2...v1.0.3) (2026-07-04)
 
 ### Features
