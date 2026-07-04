@@ -12,9 +12,9 @@ const { mockProcessChapter } = vi.hoisted(() => ({
   mockProcessChapter: vi.fn(),
 }));
 
-vi.mock("../../src/process-chapter.js", async (importOriginal) => {
+vi.mock("../../src/download.js", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/process-chapter.js")>();
+    await importOriginal<typeof import("../../src/download.js")>();
   return {
     ...actual,
     processChapter: mockProcessChapter,
@@ -42,7 +42,7 @@ vi.mock("../../src/ui.js", async (importOriginal) => {
   };
 });
 
-const { runPipeline } = await import("../../src/tasks.js");
+const { runPipeline } = await import("../../src/pipeline.js");
 
 function fakeResult(chapterUrl: string, count = 5) {
   const urls = Array.from(

@@ -3,6 +3,13 @@ import { mkdirSync, renameSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomInt as _randomInt } from "es-toolkit";
 
+export class CanceledError extends Error {
+  constructor() {
+    super("User canceled");
+    this.name = "CanceledError";
+  }
+}
+
 export function randomInt(min: number, max: number): number {
   if (min === max) return min;
   return _randomInt(min, max);

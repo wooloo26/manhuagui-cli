@@ -4,8 +4,8 @@ import { fileURLToPath } from "node:url";
 import { chromium, type Browser } from "playwright";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { config, initConfig } from "../../src/config.js";
-import { SpeedTracker } from "../../src/speed.js";
-import { processChapter } from "../../src/process-chapter.js";
+import { SpeedTracker } from "../../src/ui.js";
+import { processChapter } from "../../src/download.js";
 import { slugify } from "../../src/utils.js";
 import {
   createMockCreateBrowserContext,
@@ -31,9 +31,9 @@ const { mockCreateBrowserContext, mockHandleAdultCheck } = vi.hoisted(() => ({
   mockHandleAdultCheck: vi.fn(),
 }));
 
-vi.mock("../../src/browser.js", async (importOriginal) => {
+vi.mock("../../src/comic.js", async (importOriginal) => {
   const actual =
-    await importOriginal<typeof import("../../src/browser.js")>();
+    await importOriginal<typeof import("../../src/comic.js")>();
   return {
     ...actual,
     createBrowserContext: mockCreateBrowserContext,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { command } from "../src/cli.js";
-import { filterSectionsByNames } from "../src/reporting.js";
+import { filterSectionsByNames } from "../src/cli.js";
 import type { Section } from "../src/types.js";
 
 function makeSection(name: string, chapters: string[]): Section {

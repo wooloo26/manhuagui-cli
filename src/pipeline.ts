@@ -2,8 +2,8 @@ import { join } from "node:path";
 import { sum } from "es-toolkit";
 import type { Browser } from "playwright";
 import type { Config } from "./config.js";
+import { processChapter } from "./download.js";
 import { logger } from "./logger.js";
-import { processChapter } from "./process-chapter.js";
 import type { ProgressData } from "./progress.js";
 import {
   chapterKey,
@@ -13,9 +13,8 @@ import {
   saveProgress,
   updateChapterProgress,
 } from "./progress.js";
-import { SpeedTracker } from "./speed.js";
 import type { Section } from "./types.js";
-import { DownloadUI } from "./ui.js";
+import { DownloadUI, SpeedTracker } from "./ui.js";
 import { randomInt, sleep, slugify } from "./utils.js";
 
 export interface PipelineResult {

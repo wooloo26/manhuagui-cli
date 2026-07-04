@@ -9,7 +9,7 @@ import {
   getPageCount,
   getSubPageUrls,
   validateImageResponse,
-} from "../src/chapter.js";
+} from "../src/download.js";
 
 describe("computePadLength", () => {
   it("returns padMinLength (3) for counts with fewer digits", () => {
