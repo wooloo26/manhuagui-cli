@@ -11,10 +11,10 @@ import { CancelledError } from "./errors.js";
 import { logger } from "./logger.js";
 import {
   buildChapterIndexMap,
-  executeDownloadFlow,
+  chapterKey,
   filterSectionsForResume,
-} from "./pipeline-orchestrator.js";
-import { chapterKey, loadProgress } from "./progress.js";
+  loadProgress,
+} from "./progress.js";
 import {
   promptConfirm,
   promptOverwriteCheck,
@@ -29,6 +29,7 @@ import {
   logSectionSummary,
   reportResults,
 } from "./reporting.js";
+import { runPipeline } from "./tasks.js";
 import type { ComicInfo, Section } from "./types.js";
 import { slugify } from "./utils.js";
 
@@ -73,6 +74,47 @@ async function promptResumeCheck(opts: {
   return false;
 }
 
+async function runDownloadFlow(opts: {
+  sections: Section[];
+  comic: ComicInfo;
+  url: string;
+  browser: Browser;
+  resume: boolean;
+  overwrite: boolean;
+  dryRun: boolean;
+  info: (msg: string) => void;
+  warn: (msg: string) => void;
+  onAllDone: (msg: string) => void;
+}): Promise<void> {
+  const { sections, comic, url, browser, resume, overwrite, dryRun, info, warn, onAllDone } = opts;
+  const chapterIndexMap = buildChapterIndexMap(sections);
+  const totalPagesExpected = countTotalPages(sections);
+  const comicDir = join(config.outputBase, slugify(comic.title));
+  const filtered = filterSectionsForResume(sections, comicDir, resume, overwrite);
+  if (filtered === null) {
+    onAllDone("All chapters already downloaded.");
+    return;
+  }
+  const finalSections = filtered;
+  const totalChapters = logSectionSummary(finalSections, info);
+  if (dryRun) {
+    displayDryRun(finalSections, info);
+    return;
+  }
+  const result = await runPipeline({
+    sections: finalSections,
+    chapterIndexMap,
+    comicTitle: comic.title,
+    comicUrl: url,
+    browser,
+    cfg: config,
+    resume,
+    overwrite,
+    totalPagesExpected,
+  });
+  reportResults(result, totalChapters, info, warn);
+}
+
 async function runDirect(opts: {
   url: string;
   sectionFilter: string | undefined;
@@ -85,42 +127,22 @@ async function runDirect(opts: {
   const browser = await launchBrowser();
   try {
     const comic = await parseComicWithSpinner(browser, url);
-    let sections = applyFilters(comic.sections, sectionFilter, chapterFilter);
+    const sections = applyFilters(comic.sections, sectionFilter, chapterFilter);
     if (sections.length === 0) {
       throw new Error("No chapters found matching filters");
     }
-    const chapterIndexMap = buildChapterIndexMap(sections);
-    const totalPagesExpected = countTotalPages(sections);
-    const comicDir = join(config.outputBase, slugify(comic.title));
-    const filtered = filterSectionsForResume(sections, comicDir, resume, overwrite);
-    if (filtered === null) {
-      logger.info("All chapters already downloaded.");
-      return;
-    }
-    sections = filtered;
-    const totalChapters = logSectionSummary(sections, (m) => logger.info(m));
-    if (dryRun) {
-      displayDryRun(sections, (m) => logger.info(m));
-      return;
-    }
-    const result = await executeDownloadFlow({
+    await runDownloadFlow({
       sections,
-      chapterIndexMap,
       comic,
       url,
       browser,
-      cfg: config,
       resume,
       overwrite,
-      totalChapters,
-      totalPagesExpected,
+      dryRun,
+      info: (m) => logger.info(m),
+      warn: (m) => logger.warn(m),
+      onAllDone: (m) => logger.info(m),
     });
-    reportResults(
-      result,
-      totalChapters,
-      (m) => logger.info(m),
-      (m) => logger.warn(m),
-    );
   } finally {
     await browser.close();
   }
@@ -156,44 +178,24 @@ async function runInteractive(resume: boolean, overwrite: boolean, dryRun: boole
           .map((s) => s.name);
       }
     }
-    let selected = await promptSections(comic.sections, initialSections);
-    const chapterIndexMap = buildChapterIndexMap(selected);
-    const totalPagesExpected = countTotalPages(selected);
-    const filtered = filterSectionsForResume(selected, comicDir, shouldResume, shouldOverwrite);
-    if (filtered === null) {
-      outro("All chapters already downloaded.");
-      return;
-    }
-    selected = filtered;
-    const totalChapters = logSectionSummary(selected, (m) => logger.info(m));
-    const confirmed = await promptConfirm(totalChapters);
+    const selected = await promptSections(comic.sections, initialSections);
+    const confirmed = await promptConfirm(selected.reduce((sum, s) => sum + s.chapters.length, 0));
     if (!confirmed || isCancel(confirmed)) {
       outro("Cancelled.");
       return;
     }
-    if (dryRun) {
-      displayDryRun(selected, (m) => logger.info(m));
-      outro(`Dry run complete. ${totalChapters} chapters would be downloaded.`);
-      return;
-    }
-    const result = await executeDownloadFlow({
+    await runDownloadFlow({
       sections: selected,
-      chapterIndexMap,
       comic,
       url,
       browser,
-      cfg: config,
       resume: shouldResume,
-      overwrite,
-      totalChapters,
-      totalPagesExpected,
+      overwrite: shouldOverwrite,
+      dryRun,
+      info: (m) => logger.info(m),
+      warn: (m) => logger.warn(m),
+      onAllDone: (m) => outro(m),
     });
-    reportResults(
-      result,
-      totalChapters,
-      (m) => logger.info(m),
-      (m) => logger.warn(m),
-    );
   } finally {
     await browser.close();
   }
@@ -203,59 +205,62 @@ export const command = defineCommand({
   meta: {
     name: "manhuagui-cli",
     version: pkg.version,
-    description: "漫画柜 (manhuagui.com) 漫画下载工具 / CLI tool for downloading manhua",
+    description:
+      "\u6F2B\u753B\u67DC (manhuagui.com) \u6F2B\u753B\u4E0B\u8F7D\u5DE5\u5177 / CLI tool for downloading manhua",
   },
   args: {
     url: {
       type: "positional",
-      description: "漫画 URL / Comic URL",
+      description: "\u6F2B\u753B URL / Comic URL",
       required: false,
     },
     section: {
       type: "string",
-      description: "指定章节组名称 / Section name to download",
+      description: "\u6307\u5B9A\u7AE0\u8282\u7EC4\u540D\u79F0 / Section name to download",
       alias: "s",
     },
     chapter: {
       type: "string",
-      description: "指定章节名称 / Chapter name to download",
+      description: "\u6307\u5B9A\u7AE0\u8282\u540D\u79F0 / Chapter name to download",
       alias: "c",
     },
     resume: {
       type: "boolean",
-      description: "断点续传 / Resume from previous download",
+      description: "\u65AD\u70B9\u7EED\u4F20 / Resume from previous download",
       alias: "r",
       default: false,
     },
     overwrite: {
       type: "boolean",
-      description: "续传时覆盖未完成的章节 / Overwrite unfinished chapters when resuming",
+      description:
+        "\u7EED\u4F20\u65F6\u8986\u76D6\u672A\u5B8C\u6210\u7684\u7AE0\u8282 / Overwrite unfinished chapters when resuming",
       alias: "O",
       default: false,
     },
     "dry-run": {
       type: "boolean",
-      description: "预览模式 / Preview without downloading",
+      description: "\u9884\u89C8\u6A21\u5F0F / Preview without downloading",
       alias: "d",
       default: false,
     },
     output: {
       type: "string",
-      description: "下载输出目录 / Output directory for downloads",
+      description: "\u4E0B\u8F7D\u8F93\u51FA\u76EE\u5F55 / Output directory for downloads",
       alias: "o",
     },
     concurrency: {
       type: "string",
-      description: "章节内图片并发下载数 / Concurrent image downloads per chapter",
+      description:
+        "\u7AE0\u8282\u5185\u56FE\u7247\u5E76\u53D1\u4E0B\u8F7D\u6570 / Concurrent image downloads per chapter",
       alias: "C",
     },
     retry: {
       type: "string",
-      description: "图片下载重试次数 / Retry count per image",
+      description: "\u56FE\u7247\u4E0B\u8F7D\u91CD\u8BD5\u6B21\u6570 / Retry count per image",
     },
     "log-level": {
       type: "string",
-      description: "日志级别: debug | info | warn | error / Log level",
+      description: "\u65E5\u5FD7\u7EA7\u522B: debug | info | warn | error / Log level",
     },
   },
   async run({ args }) {

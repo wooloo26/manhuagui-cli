@@ -1,5 +1,4 @@
 import { sum } from "es-toolkit";
-import { config } from "./config.js";
 
 export interface OverallEtaInput {
   overallStart: number;
@@ -11,7 +10,12 @@ export interface OverallEtaInput {
   chapterPageTotal: number;
 }
 
-export function estimateOverallEta(input: OverallEtaInput): number {
+export interface EtaDelayParams {
+  chapterDelayMin: number;
+  chapterDelayMax: number;
+}
+
+export function estimateOverallEta(input: OverallEtaInput, delays: EtaDelayParams): number {
   const {
     overallStart,
     chapterStart,
@@ -38,7 +42,7 @@ export function estimateOverallEta(input: OverallEtaInput): number {
   const pageRate = chapterPageDone / chapterElapsed;
   const chapterRemainingSec = (chapterPageTotal - chapterPageDone) / Math.max(pageRate, 0.001);
 
-  const avgDelay = (config.chapterDelayMin + config.chapterDelayMax) / 2 / 1000;
+  const avgDelay = (delays.chapterDelayMin + delays.chapterDelayMax) / 2 / 1000;
   const estimatedChapterSec = chapterElapsed + chapterRemainingSec + avgDelay;
 
   return chapterRemainingSec + (remaining - 1) * Math.max(estimatedChapterSec, 0);
@@ -47,6 +51,13 @@ export function estimateOverallEta(input: OverallEtaInput): number {
 interface Sample {
   bytes: number;
   durationMs: number;
+}
+
+export interface RemainingDelayParams {
+  imageConcurrency: number;
+  downloadDelay: number;
+  chapterDelayMin: number;
+  chapterDelayMax: number;
 }
 
 export class SpeedTracker {
@@ -91,18 +102,22 @@ export class SpeedTracker {
     return this.samples.length;
   }
 
-  estimateRemainingMs(remainingImages: number, remainingChapters: number): number {
+  estimateRemainingMs(
+    remainingImages: number,
+    remainingChapters: number,
+    delays: RemainingDelayParams,
+  ): number {
     const speed = this.bytesPerSecond;
     const avgBytes = this.avgBytesPerImage;
     if (speed <= 0 || avgBytes <= 0 || remainingImages <= 0) return 0;
 
     const downloadTime = ((remainingImages * avgBytes) / speed) * 1000;
 
-    const batchCount = Math.ceil(remainingImages / config.imageConcurrency);
-    const avgBatchDelay = config.downloadDelay * 0.75;
+    const batchCount = Math.ceil(remainingImages / delays.imageConcurrency);
+    const avgBatchDelay = delays.downloadDelay * 0.75;
     const batchDelay = Math.max(0, batchCount - 1) * avgBatchDelay;
 
-    const avgChapterDelay = (config.chapterDelayMin + config.chapterDelayMax) / 2;
+    const avgChapterDelay = (delays.chapterDelayMin + delays.chapterDelayMax) / 2;
     const chapterDelay = Math.max(0, remainingChapters - 1) * avgChapterDelay;
 
     return Math.round(downloadTime + batchDelay + chapterDelay);

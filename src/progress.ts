@@ -111,3 +111,26 @@ export function filterPending(
     }))
     .filter((s) => s.chapters.length > 0);
 }
+
+export function buildChapterIndexMap(sections: Section[]): Map<string, number> {
+  const map = new Map<string, number>();
+  let idx = 0;
+  for (const s of sections) {
+    for (const c of s.chapters) {
+      map.set(chapterKey(s.name, c.title), ++idx);
+    }
+  }
+  return map;
+}
+
+export function filterSectionsForResume(
+  sections: Section[],
+  comicDir: string,
+  shouldResume: boolean,
+  overwrite: boolean,
+): Section[] | null {
+  if (!shouldResume) return sections;
+  const progress = loadProgress(comicDir);
+  const filtered = filterPending(progress, sections, comicDir, overwrite);
+  return filtered.length === 0 ? null : filtered;
+}

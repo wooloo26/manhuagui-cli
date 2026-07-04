@@ -155,6 +155,7 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
     completedFromResume,
     totalPagesExpected,
     initialPagesDone,
+    { chapterDelayMin: cfg.chapterDelayMin, chapterDelayMax: cfg.chapterDelayMax },
   );
   const tracker = new SpeedTracker();
   let ok = 0;
