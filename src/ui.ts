@@ -54,7 +54,6 @@ export class DownloadUI {
   private currentChapterExpected: number = 0;
 
   constructor(
-    _comicTitle: string,
     totalChapters: number,
     initialCompleted: number,
     totalPagesExpected: number,

@@ -109,7 +109,6 @@ export async function runPipeline(opts: RunPipelineOptions): Promise<PipelineRes
   const totalChapters = completedFromResume + pendingChapters;
   const initialPagesDone = resume ? countCompletedPages(progress) : 0;
   const ui = new DownloadUI(
-    comicTitle,
     totalChapters,
     completedFromResume,
     totalPagesExpected,

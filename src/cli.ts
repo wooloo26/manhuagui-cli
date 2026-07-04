@@ -154,7 +154,7 @@ async function promptResumeCheck(opts: {
   resume: boolean;
   comicDir: string;
 }): Promise<boolean> {
-  const { comic: _comic, sections, resume, comicDir } = opts;
+  const { sections, resume, comicDir } = opts;
   if (resume) return true;
 
   const progress = loadProgress(comicDir);

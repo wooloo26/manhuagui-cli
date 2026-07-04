@@ -28,11 +28,6 @@ export function buildFilePath(opts: {
   return join(opts.outputDir, `${padNum}.${opts.ext}`);
 }
 
-function computeFilePath(url: string, outputDir: string, index: number, padLen: number): string {
-  const ext = extractExtension(url);
-  return buildFilePath({ outputDir, index, padLen, ext });
-}
-
 export async function getPageCount(page: PlaywrightPage): Promise<number> {
   return page.evaluate(() => {
     const pageSpan = document.querySelector("#page");
@@ -145,7 +140,12 @@ async function downloadImage(opts: {
   padLen: number;
 }): Promise<DownloadResult> {
   const { dlPage, chapterUrl, url, outputDir, imageIndex, padLen } = opts;
-  const filePath = computeFilePath(url, outputDir, imageIndex, padLen);
+  const filePath = buildFilePath({
+    outputDir,
+    index: imageIndex,
+    padLen,
+    ext: extractExtension(url),
+  });
 
   let downloadUrl = url;
 
@@ -200,7 +200,12 @@ async function downloadImages(opts: {
       const results = await Promise.all(
         batch.map(async (url, idx) => {
           const imageIndex = completed + idx;
-          const filePath = computeFilePath(url, outputDir, imageIndex, padLen);
+          const filePath = buildFilePath({
+            outputDir,
+            index: imageIndex,
+            padLen,
+            ext: extractExtension(url),
+          });
 
           if (existsSync(filePath) && statSync(filePath).size > 0) {
             return { ok: true, bytes: 0, durationMs: 0 };
