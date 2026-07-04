@@ -169,7 +169,21 @@ describe("filterPending", () => {
     expect(filtered[0].chapters).toHaveLength(1);
   });
 
-  it("without overwrite, skips chapters that have files on disk", () => {
+  it("without overwrite, skips chapters that have files on disk (no progress entry)", () => {
+    const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
+
+    makeChapterDir("Vol 1", "Ch1");
+
+    const progress = createProgress("Test", "https://example.com");
+
+    const filtered = filterPending(progress, sections, comicDir, false);
+
+    expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(1);
+    expect(filtered[0].chapters[0].title).toBe("Ch2");
+  });
+
+  it("without overwrite, does not skip pending chapters even when files exist on disk", () => {
     const sections = [section("Vol 1", [chapter("Ch1"), chapter("Ch2")])];
 
     makeChapterDir("Vol 1", "Ch1");
@@ -185,8 +199,42 @@ describe("filterPending", () => {
     const filtered = filterPending(progress, sections, comicDir, false);
 
     expect(filtered).toHaveLength(1);
+    expect(filtered[0].chapters).toHaveLength(2);
+    expect(filtered[0].chapters[0].title).toBe("Ch1");
+    expect(filtered[0].chapters[1].title).toBe("Ch2");
+  });
+
+  it("does not skip pending chapter when it is the last chapter in a section", () => {
+    const sections = [
+      section("Vol 1", [chapter("Ch1"), chapter("Ch2")]),
+      section("Vol 2", [chapter("Ch3")]),
+    ];
+
+    makeChapterDir("Vol 1", "Ch1");
+    makeChapterDir("Vol 2", "Ch3");
+
+    let progress = createProgress("Test", "https://example.com");
+    progress = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 1::Ch1",
+      status: "done",
+      extra: { pageCount: 10 },
+    });
+    progress = updateChapterProgress({
+      comicDir: testDir,
+      progress,
+      key: "Vol 2::Ch3",
+      status: "pending",
+    });
+
+    const filtered = filterPending(progress, sections, comicDir, false);
+
+    expect(filtered).toHaveLength(2);
     expect(filtered[0].chapters).toHaveLength(1);
     expect(filtered[0].chapters[0].title).toBe("Ch2");
+    expect(filtered[1].chapters).toHaveLength(1);
+    expect(filtered[1].chapters[0].title).toBe("Ch3");
   });
 
   it("with overwrite, includes non-done chapters even when files exist on disk", () => {
