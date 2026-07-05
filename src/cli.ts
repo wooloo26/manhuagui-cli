@@ -49,17 +49,6 @@ export function filterSectionsByNames(
   return result;
 }
 
-function sumChapters(sections: Section[]): number {
-  return sections.reduce((sum, s) => sum + s.chapters.length, 0);
-}
-
-function logSectionSummary(sections: Section[], log: (msg: string) => void): number {
-  const total = sumChapters(sections);
-  log(`Sections: ${sections.map((s) => `${s.name}(${s.chapters.length})`).join(", ")}`);
-  log(`Total chapters: ${total}`);
-  return total;
-}
-
 function displayDryRun(sections: Section[], log: (msg: string) => void): void {
   for (const section of sections) {
     for (const ch of section.chapters) {
@@ -149,7 +138,7 @@ async function runDownloadFlow(opts: {
     return;
   }
   const finalSections = filtered;
-  const totalChapters = logSectionSummary(finalSections, info);
+  const totalChapters = finalSections.reduce((sum, s) => sum + s.chapters.length, 0);
   if (dryRun) {
     displayDryRun(finalSections, info);
     return;
